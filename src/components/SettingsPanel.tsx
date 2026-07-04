@@ -1,13 +1,15 @@
 "use client";
 
-import type { LastfmProfile, Visibility } from "@/types";
+import { useEffect, useState } from "react";
+import type { LocalProfile, Visibility } from "@/types";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  profile: LastfmProfile | null;
+  profile: LocalProfile | null;
   visibility: Visibility;
   onChangeVisibility: (v: Visibility) => void;
+  onUpdateProfile: (profile: Omit<LocalProfile, "id">) => void;
   onRefreshLocation: () => void;
   onDisconnect: () => void;
 }
@@ -39,9 +41,18 @@ export function SettingsPanel({
   profile,
   visibility,
   onChangeVisibility,
+  onUpdateProfile,
   onRefreshLocation,
   onDisconnect,
 }: Props) {
+  const [displayName, setDisplayName] = useState(profile?.displayName || "");
+  const [photoURL, setPhotoURL] = useState(profile?.photoURL || "");
+
+  useEffect(() => {
+    setDisplayName(profile?.displayName || "");
+    setPhotoURL(profile?.photoURL || "");
+  }, [profile]);
+
   return (
     <>
       <div
@@ -51,7 +62,7 @@ export function SettingsPanel({
         }`}
       />
       <div
-        className={`glass fixed right-0 top-0 z-50 flex h-full w-[min(90vw,380px)] flex-col p-6 transition-transform duration-300 ${
+        className={`glass fixed right-0 top-0 z-50 flex h-full w-[min(90vw,390px)] flex-col overflow-y-auto p-6 transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -76,10 +87,35 @@ export function SettingsPanel({
             )}
             <div className="min-w-0">
               <div className="truncate font-semibold">{profile.displayName}</div>
-              <div className="text-xs text-spotify">Last.fm baglantili</div>
+              <div className="text-xs text-spotify">Sonar profili</div>
             </div>
           </div>
         )}
+
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+          Profil
+        </div>
+        <div className="mb-6 flex flex-col gap-2">
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="Kullanici adi"
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none focus:border-spotify"
+          />
+          <input
+            value={photoURL}
+            onChange={(e) => setPhotoURL(e.target.value)}
+            placeholder="Profil fotografi URL'i"
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none focus:border-spotify"
+          />
+          <button
+            onClick={() => onUpdateProfile({ displayName, photoURL })}
+            disabled={!displayName.trim()}
+            className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-black disabled:opacity-50"
+          >
+            Profili kaydet
+          </button>
+        </div>
 
         <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
           Konum Gizliligi

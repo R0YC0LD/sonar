@@ -54,16 +54,15 @@ export function PrivacyPolicy() {
       </p>
 
       <Section title="1. Topladığımız Veriler">
-        <p>Last.fm kullanıcı adınızı bağladığınızda şu verilere erişiriz:</p>
+        <p>Site profilinizi oluşturduğunuzda şu verileri işleriz:</p>
         <ul className="ml-5 list-disc space-y-1">
-          <li>Last.fm kullanıcı adınız, görünen adınız ve herkese açık profil fotoğrafınız</li>
-          <li>Last.fm üzerinden görünen şu an çalan veya son dinlenen şarkı bilgisi</li>
+          <li>Belirlediğiniz kullanıcı adı ve profil fotoğrafı URL'i</li>
+          <li>Site içindeki player'da çaldığınız şarkı bilgisi</li>
           <li>Yaklaşık konumunuz (tarayıcı konum izniyle GPS veya IP adresi tabanlı şehir/ülke)</li>
           <li>Seçtiğiniz gizlilik tercihi (global / sadece arkadaşlar / kapalı)</li>
         </ul>
         <p>
-          Last.fm şifrenizi <b>istemeyiz, görmeyiz ve saklamayız</b>. Platform yalnızca girilen
-          Last.fm kullanıcı adının herkese açık profil ve dinleme verilerini okur.
+          Harici müzik hesabı şifresi veya token istemeyiz, görmeyiz ve saklamayız.
         </p>
       </Section>
 
@@ -98,7 +97,7 @@ export function PrivacyPolicy() {
       <Section title="5. Üçüncü Taraf Hizmetler">
         <p>Platform aşağıdaki hizmetleri kullanır ve onların kendi gizlilik politikaları geçerlidir:</p>
         <ul className="ml-5 list-disc space-y-1">
-          <li><b>Last.fm</b> — profil ve dinleme verisi (last.fm/api)</li>
+          <li><b>Müzik arama servisi</b> — çalınabilir preview ve kapak görseli</li>
           <li><b>Google Firebase</b> — kimlik doğrulama, veri saklama, barındırma</li>
           <li><b>Konum servisleri</b> — yaklaşık şehir/ülke belirleme (ipapi.co, bigdatacloud.net)</li>
         </ul>
@@ -114,8 +113,7 @@ export function PrivacyPolicy() {
 
       <Section title="7. Çocukların Gizliliği">
         <p>
-          Platform 13 yaşından küçük kullanıcılara yönelik değildir. Last.fm ve bağlı müzik
-          hizmetlerinin kendi yaş şartları ayrıca geçerlidir.
+          Platform 13 yaşından küçük kullanıcılara yönelik değildir.
         </p>
       </Section>
 
@@ -127,7 +125,7 @@ export function PrivacyPolicy() {
       </Section>
 
       <p className="mt-6 text-xs text-white/40">
-        {SITE_NAME}, Last.fm veya Spotify ile bağlantılı, onlara ait veya onlar tarafından
+        {SITE_NAME}, Spotify, Last.fm veya Apple ile bağlantılı, onlara ait veya onlar tarafından
         desteklenen bir hizmet değildir.
       </p>
     </Shell>
@@ -144,17 +142,18 @@ export function TermsOfService() {
 
       <Section title="1. Hizmetin Tanımı">
         <p>
-          {SITE_NAME}, kullanıcıların Last.fm kullanıcı adlarını bağlayarak, seçtikleri gizlilik
-          ayarına göre o anda dinledikleri veya son dinledikleri müziği ve yaklaşık konumlarını bir
-          dünya haritası üzerinde diğer kullanıcılarla paylaşabildiği bir sosyal keşif platformudur.
+          {SITE_NAME}, kullanıcıların site içinde profil oluşturup player'dan müzik arayarak
+          dinleyebildiği; seçtikleri gizlilik ayarına göre o anda dinledikleri müziği ve yaklaşık
+          konumlarını bir dünya haritası üzerinde diğer kullanıcılarla paylaşabildiği bir sosyal
+          keşif platformudur.
         </p>
       </Section>
 
       <Section title="2. Hesap ve Uygunluk">
         <ul className="ml-5 list-disc space-y-1">
-          <li>Geçerli ve size ait bir Last.fm kullanıcı adı kullanmalısınız.</li>
+          <li>Gerçek veya yanıltıcı olmayan bir site profili kullanmalısınız.</li>
           <li>En az 13 yaşında olmalısınız.</li>
-          <li>Başkasına ait Last.fm kullanıcı adını izinsiz kullanamazsınız.</li>
+          <li>Başkasına ait isim, fotoğraf veya kimliği izinsiz kullanamazsınız.</li>
         </ul>
       </Section>
 
@@ -170,8 +169,9 @@ export function TermsOfService() {
 
       <Section title="4. İçerik ve Fikri Mülkiyet">
         <p>
-          Şarkı, albüm kapağı ve sanatçı bilgileri Last.fm ve ilgili hak sahiplerinden gelen açık
-          verilerle yalnızca görüntüleme amacıyla gösterilir. Platform bu içeriğin sahibi değildir.
+          Şarkı, albüm kapağı ve sanatçı bilgileri ilgili müzik veri sağlayıcıları ve hak
+          sahiplerinden gelen verilerle yalnızca görüntüleme/dinleme amacıyla gösterilir. Platform
+          bu içeriğin sahibi değildir.
         </p>
       </Section>
 
@@ -198,8 +198,8 @@ export function TermsOfService() {
       </Section>
 
       <p className="mt-6 text-xs text-white/40">
-        {SITE_NAME}, Last.fm veya Spotify ile bağlantılı değildir. Last.fm ve Spotify kullanımınız
-        ayrıca ilgili hizmetlerin kendi kullanım şartlarına tabidir.
+        {SITE_NAME}, Spotify, Last.fm veya Apple ile bağlantılı değildir. Müzik içerikleri ilgili
+        sağlayıcıların kendi şartlarına tabi olabilir.
       </p>
     </Shell>
   );

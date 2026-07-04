@@ -1,29 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
+  deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   setDoc,
   updateDoc,
-  deleteDoc,
-  getDoc,
 } from "firebase/firestore";
 import { db, ensureAnonymousAuth, isFirebaseConfigured } from "@/lib/firebase";
-import {
-  clearLastfmSession,
-  connectLastfm as connectLastfmAccount,
-  fetchLastfmProfile,
-  fetchNowPlaying,
-  hasLastfmSession,
-  isLastfmConfigured,
-  LastfmApiError,
-} from "@/lib/lastfm";
 import { resolveLocation } from "@/lib/geo";
-import type { LastfmProfile, NowPlaying, UserDoc, Visibility } from "@/types";
+import type { LocalProfile, NowPlaying, UserDoc, Visibility } from "@/types";
 
-const POLL_MS = 20_000; // her 20 sn'de bir "su an caliyor" guncelle
-const ACTIVE_WINDOW_MS = 5 * 60_000; // son 5 dk aktif olanlar haritada
+const POLL_MS = 25_000;
+const ACTIVE_WINDOW_MS = 5 * 60_000;
 const VIS_KEY = "sonar_visibility";
+const PROFILE_KEY = "sonar_profile";
 
 export interface PresenceState {
   ready: boolean;
@@ -31,17 +23,42 @@ export interface PresenceState {
   error: string | null;
   configured: boolean;
   uid: string | null;
-  profile: LastfmProfile | null;
+  profile: LocalProfile | null;
   connected: boolean;
   visibility: Visibility;
-  users: UserDoc[]; // haritada gosterilecekler (kendisi haric, filtrelenmis)
+  users: UserDoc[];
   me: UserDoc | null;
   friends: string[];
-  connectLastfm: (username: string) => Promise<void>;
+  connectProfile: (profile: Omit<LocalProfile, "id">) => Promise<void>;
+  updateProfile: (profile: Omit<LocalProfile, "id">) => Promise<void>;
+  setNowPlaying: (track: NowPlaying | null) => Promise<void>;
   disconnect: () => Promise<void>;
   changeVisibility: (v: Visibility) => Promise<void>;
   toggleFriend: (uid: string) => Promise<void>;
   refreshLocation: () => Promise<void>;
+}
+
+function loadProfile(): LocalProfile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LocalProfile;
+    return parsed.displayName ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveProfile(profile: LocalProfile) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+}
+
+function makeProfile(uid: string, input: Omit<LocalProfile, "id">): LocalProfile {
+  return {
+    id: uid,
+    displayName: input.displayName.trim(),
+    photoURL: input.photoURL.trim(),
+  };
 }
 
 export function usePresence(): PresenceState {
@@ -49,22 +66,23 @@ export function usePresence(): PresenceState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uid, setUid] = useState<string | null>(null);
-  const [profile, setProfile] = useState<LastfmProfile | null>(null);
-  const [connected, setConnected] = useState(false);
+  const [profile, setProfile] = useState<LocalProfile | null>(() => loadProfile());
   const [visibility, setVisibility] = useState<Visibility>(
     (localStorage.getItem(VIS_KEY) as Visibility) || "global"
   );
   const [allUsers, setAllUsers] = useState<UserDoc[]>([]);
   const [friends, setFriends] = useState<string[]>([]);
 
-  const configured = isFirebaseConfigured && isLastfmConfigured;
+  const configured = isFirebaseConfigured;
+  const connected = Boolean(profile);
+  const profileRef = useRef<LocalProfile | null>(profile);
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
   const placeRef = useRef<{ city?: string; country?: string }>({});
   const nowPlayingRef = useRef<NowPlaying | null>(null);
   const visibilityRef = useRef<Visibility>(visibility);
+  profileRef.current = profile;
   visibilityRef.current = visibility;
 
-  /* ---------- 1) Firebase anonim giris ---------- */
   useEffect(() => {
     if (!configured) {
       setLoading(false);
@@ -76,7 +94,6 @@ export function usePresence(): PresenceState {
       .then((user) => {
         if (!mounted) return;
         setUid(user.uid);
-        setConnected(hasLastfmSession());
         setReady(true);
         setLoading(false);
       })
@@ -91,7 +108,6 @@ export function usePresence(): PresenceState {
     };
   }, [configured]);
 
-  /* ---------- 2) Tum kullanicilari dinle ---------- */
   useEffect(() => {
     if (!configured || !uid) return;
     const unsub = onSnapshot(collection(db, "users"), (snap) => {
@@ -102,7 +118,6 @@ export function usePresence(): PresenceState {
     return () => unsub();
   }, [configured, uid]);
 
-  /* ---------- 3) Arkadas listemi dinle ---------- */
   useEffect(() => {
     if (!configured || !uid) return;
     const unsub = onSnapshot(doc(db, "friendships", uid), (d) => {
@@ -111,35 +126,6 @@ export function usePresence(): PresenceState {
     return () => unsub();
   }, [configured, uid]);
 
-  /* ---------- 4) Last.fm profilini yukle ---------- */
-  useEffect(() => {
-    if (!connected) {
-      setProfile(null);
-      return;
-    }
-    fetchLastfmProfile()
-      .then((p) => {
-        if (p) {
-          setError(null);
-          setProfile(p);
-        } else {
-          clearLastfmSession();
-          setConnected(false);
-        }
-      })
-      .catch((e) => {
-        clearLastfmSession();
-        setConnected(false);
-        setProfile(null);
-        if (e instanceof LastfmApiError) {
-          setError(e.message);
-        } else {
-          setError("Last.fm baglantisi tamamlanamadi. Lutfen kullanici adini kontrol et.");
-        }
-      });
-  }, [connected]);
-
-  /* ---------- 5) Konumu coz ---------- */
   const refreshLocation = useCallback(async () => {
     const loc = await resolveLocation();
     if (loc) {
@@ -148,33 +134,26 @@ export function usePresence(): PresenceState {
     }
   }, []);
 
-  useEffect(() => {
-    if (connected) refreshLocation();
-  }, [connected, refreshLocation]);
-
-  /* ---------- 6) Firestore'a yaz + now-playing poll ---------- */
   const writeMe = useCallback(async () => {
-    if (!uid || !profile) return;
+    const currentProfile = profileRef.current;
+    if (!uid || !currentProfile) return;
     const vis = visibilityRef.current;
     const payload: UserDoc = {
       uid,
-      musicProvider: "lastfm",
-      musicUserId: profile.id,
-      lastfmUsername: profile.username,
-      displayName: profile.displayName,
-      photoURL: profile.photoURL,
+      musicProvider: "sonar",
+      musicUserId: uid,
+      displayName: currentProfile.displayName,
+      photoURL: currentProfile.photoURL,
       city: placeRef.current.city,
       country: placeRef.current.country,
-      // "off" secilince konum HIC yazilmaz (gizlilik)
       location: vis === "off" ? null : locationRef.current,
       visibility: vis,
       nowPlaying: nowPlayingRef.current,
       lastActive: Date.now(),
     };
-    // Firestore "undefined" degerleri kabul etmez; JSON turu ile temizle.
     const clean = JSON.parse(JSON.stringify(payload));
     await setDoc(doc(db, "users", uid), clean, { merge: true });
-  }, [uid, profile]);
+  }, [uid]);
 
   useEffect(() => {
     if (!configured || !uid || !profile) return;
@@ -183,29 +162,19 @@ export function usePresence(): PresenceState {
     const tick = async () => {
       if (stop) return;
       try {
-        nowPlayingRef.current = await fetchNowPlaying(profile.username);
         if (!locationRef.current) await refreshLocation();
         await writeMe();
         setError(null);
-      } catch (e) {
-        if (e instanceof LastfmApiError) {
-          setError(e.message);
-        } else {
-          setError("Dinleme verisi guncellenemedi. Birazdan tekrar denenecek.");
-        }
+      } catch {
+        setError("Canli durum guncellenemedi. Birazdan tekrar denenecek.");
       }
     };
 
     tick();
     const id = setInterval(tick, POLL_MS);
-
-    // sekme kapaninca son aktifligi eskit (haritadan dus)
     const onUnload = () => {
-      if (uid) {
-        const stale = { lastActive: Date.now() - ACTIVE_WINDOW_MS - 1000 };
-        // navigator.sendBeacon Firestore icin uygun degil; best-effort update
-        updateDoc(doc(db, "users", uid), stale).catch(() => {});
-      }
+      const stale = { lastActive: Date.now() - ACTIVE_WINDOW_MS - 1000 };
+      updateDoc(doc(db, "users", uid), stale).catch(() => {});
     };
     window.addEventListener("beforeunload", onUnload);
 
@@ -214,29 +183,52 @@ export function usePresence(): PresenceState {
       clearInterval(id);
       window.removeEventListener("beforeunload", onUnload);
     };
-  }, [configured, uid, profile, writeMe, refreshLocation]);
+  }, [configured, uid, profile, refreshLocation, writeMe]);
 
-  /* ---------- Aksiyonlar ---------- */
-  const connectLastfm = useCallback(async (username: string) => {
-    setError(null);
-    try {
-      const p = await connectLastfmAccount(username);
-      setProfile(p);
-      setConnected(true);
-    } catch (e) {
-      if (e instanceof LastfmApiError) {
-        setError(e.message);
-      } else {
-        setError("Last.fm kullanicisi baglanamadi. Lutfen tekrar dene.");
+  const connectProfile = useCallback(
+    async (input: Omit<LocalProfile, "id">) => {
+      if (!uid) {
+        setError("Kimlik hazir degil. Sayfayi yenileyip tekrar dene.");
+        return;
       }
-      setConnected(false);
-    }
-  }, []);
+      if (!input.displayName.trim()) {
+        setError("Kullanici adi bos olamaz.");
+        return;
+      }
+      const next = makeProfile(uid, input);
+      saveProfile(next);
+      setProfile(next);
+      profileRef.current = next;
+      await refreshLocation();
+      await writeMe();
+    },
+    [uid, refreshLocation, writeMe]
+  );
+
+  const updateProfile = useCallback(
+    async (input: Omit<LocalProfile, "id">) => {
+      if (!uid) return;
+      const next = makeProfile(uid, input);
+      saveProfile(next);
+      setProfile(next);
+      profileRef.current = next;
+      await writeMe();
+    },
+    [uid, writeMe]
+  );
+
+  const setNowPlaying = useCallback(
+    async (track: NowPlaying | null) => {
+      nowPlayingRef.current = track;
+      await writeMe();
+    },
+    [writeMe]
+  );
 
   const disconnect = useCallback(async () => {
-    clearLastfmSession();
+    localStorage.removeItem(PROFILE_KEY);
+    nowPlayingRef.current = null;
     if (uid) await deleteDoc(doc(db, "users", uid)).catch(() => {});
-    setConnected(false);
     setProfile(null);
   }, [uid]);
 
@@ -263,20 +255,20 @@ export function usePresence(): PresenceState {
     [uid]
   );
 
-  /* ---------- Haritada gosterilecekleri filtrele ---------- */
   const now = Date.now();
   const me = allUsers.find((u) => u.uid === uid) || null;
-  const users = allUsers.filter((u) => {
-    if (u.uid === uid) return false;
-    if (!u.location) return false;
-    if (now - (u.lastActive || 0) > ACTIVE_WINDOW_MS) return false;
-    if (u.visibility === "off") return false;
-    if (u.visibility === "friends") {
-      // Sadece karsilikli/tek yonlu arkadaslar gorebilir
-      return friends.includes(u.uid);
-    }
-    return true; // global
-  });
+  const users = useMemo(
+    () =>
+      allUsers.filter((u) => {
+        if (u.uid === uid) return false;
+        if (!u.location) return false;
+        if (now - (u.lastActive || 0) > ACTIVE_WINDOW_MS) return false;
+        if (u.visibility === "off") return false;
+        if (u.visibility === "friends") return friends.includes(u.uid);
+        return true;
+      }),
+    [allUsers, friends, now, uid]
+  );
 
   return {
     ready,
@@ -290,7 +282,9 @@ export function usePresence(): PresenceState {
     users,
     me,
     friends,
-    connectLastfm,
+    connectProfile,
+    updateProfile,
+    setNowPlaying,
     disconnect,
     changeVisibility,
     toggleFriend,

@@ -35,6 +35,7 @@ interface GlobeProps {
   minZoom?: number;
   maxZoom?: number;
   onMarkerClick?: (id: string) => void;
+  onZoomChange?: (zoom: number) => void;
 }
 
 export function Globe({
@@ -54,6 +55,7 @@ export function Globe({
   minZoom = 1,
   maxZoom = 5,
   onMarkerClick,
+  onZoomChange,
 }: GlobeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerInteracting = useRef<{ x: number; y: number } | null>(null);
@@ -63,6 +65,8 @@ export function Globe({
   const phiOffsetRef = useRef(0);
   const thetaOffsetRef = useRef(0);
   const isPausedRef = useRef(false);
+  const onZoomChangeRef = useRef(onZoomChange);
+  onZoomChangeRef.current = onZoomChange;
 
   // Zoom (cobe'un native "scale" uniform'u ile)
   const zoomRef = useRef(1);
@@ -77,6 +81,7 @@ export function Globe({
   const applyZoom = useCallback(
     (next: number) => {
       zoomRef.current = Math.max(minZoom, Math.min(maxZoom, next));
+      onZoomChangeRef.current?.(zoomRef.current);
     },
     [minZoom, maxZoom]
   );

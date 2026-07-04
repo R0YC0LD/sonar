@@ -6,8 +6,10 @@ import { MusicCard } from "@/components/ui/music-card";
 import { LoginScreen } from "@/components/LoginScreen";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { UserList } from "@/components/UserList";
+import { MusicPlayer } from "@/components/MusicPlayer";
 import { PrivacyPolicy, TermsOfService } from "@/components/LegalPage";
 import { usePresence } from "@/hooks/usePresence";
+import type { UserDoc } from "@/types";
 
 /* --------- Basit yol yonlendirici (alt-yola duyarli: kok veya /sonar/) --------- */
 export default function App() {
@@ -37,6 +39,7 @@ function MainApp() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false); // mobil panel
+  const [globeZoom, setGlobeZoom] = useState(1);
 
   const selectedUser = useMemo(
     () => presence.users.find((u) => u.uid === selectedUid) || null,
@@ -74,6 +77,11 @@ function MainApp() {
     ];
   }, [presence.me, selectedUser]);
 
+  const popupUsers = useMemo(() => {
+    if (globeZoom < 1.85) return [];
+    return presence.users.filter((u) => u.location && u.nowPlaying).slice(0, 10);
+  }, [globeZoom, presence.users]);
+
   if (!presence.ready || presence.loading) {
     return (
       <>
@@ -90,7 +98,7 @@ function MainApp() {
       <>
         <div className="app-bg" />
         <LoginScreen
-          onConnect={presence.connectLastfm}
+          onConnect={presence.connectProfile}
           configured={presence.configured}
           error={presence.error}
         />
@@ -150,6 +158,7 @@ function MainApp() {
               <Globe
                 markers={markers}
                 arcs={arcs}
+                onZoomChange={setGlobeZoom}
                 onMarkerClick={(id) => {
                   if (id !== presence.me?.uid) {
                     setSelectedUid(id);
@@ -158,6 +167,15 @@ function MainApp() {
                 }}
               />
             </div>
+
+            {popupUsers.map((u, index) => (
+              <UserBubble
+                key={u.uid}
+                user={u}
+                index={index}
+                onClick={() => setSelectedUid(u.uid)}
+              />
+            ))}
 
             {/* Secili kullanici karti */}
             {selectedUser && (
@@ -206,14 +224,19 @@ function MainApp() {
           </div>
 
           {/* Masaustu kullanici listesi */}
-          <aside className="hidden w-[320px] shrink-0 lg:block">
-            <UserList
-              users={presence.users}
-              friends={presence.friends}
-              selectedUid={selectedUid}
-              onSelect={setSelectedUid}
-              onToggleFriend={presence.toggleFriend}
-            />
+          <aside className="hidden w-[360px] shrink-0 lg:flex lg:flex-col lg:gap-4">
+            <div className="min-h-0 flex-[1.15]">
+              <MusicPlayer onNowPlaying={presence.setNowPlaying} />
+            </div>
+            <div className="min-h-0 flex-1">
+              <UserList
+                users={presence.users}
+                friends={presence.friends}
+                selectedUid={selectedUid}
+                onSelect={setSelectedUid}
+                onToggleFriend={presence.toggleFriend}
+              />
+            </div>
           </aside>
         </main>
       </div>
@@ -244,9 +267,14 @@ function MainApp() {
         profile={presence.profile}
         visibility={presence.visibility}
         onChangeVisibility={presence.changeVisibility}
+        onUpdateProfile={presence.updateProfile}
         onRefreshLocation={presence.refreshLocation}
         onDisconnect={presence.disconnect}
       />
+
+      <div className="fixed bottom-4 right-4 z-20 h-[46vh] w-[min(92vw,360px)] lg:hidden">
+        <MusicPlayer onNowPlaying={presence.setNowPlaying} />
+      </div>
 
       {presence.error && (
         <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full bg-red-500/90 px-4 py-2 text-sm text-white">
@@ -254,5 +282,49 @@ function MainApp() {
         </div>
       )}
     </>
+  );
+}
+
+function bubblePosition(user: UserDoc, index: number) {
+  const lat = user.location?.lat ?? 0;
+  const lng = user.location?.lng ?? 0;
+  const x = 50 + (lng / 180) * 34;
+  const y = 50 - (lat / 90) * 30;
+  const jitter = (index % 5) * 3;
+  return {
+    left: `${Math.max(12, Math.min(82, x + jitter))}%`,
+    top: `${Math.max(10, Math.min(78, y - jitter))}%`,
+  };
+}
+
+function UserBubble({
+  user,
+  index,
+  onClick,
+}: {
+  user: UserDoc;
+  index: number;
+  onClick: () => void;
+}) {
+  const style = bubblePosition(user, index);
+  return (
+    <button
+      onClick={onClick}
+      className="glass absolute z-20 flex max-w-[210px] animate-fade-in items-center gap-2 rounded-2xl p-2 text-left shadow-2xl transition hover:scale-105"
+      style={style}
+    >
+      {user.photoURL ? (
+        <img src={user.photoURL} alt="" className="h-12 w-12 rounded-xl object-cover" />
+      ) : (
+        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-spotify/20 text-sm font-bold">
+          {user.displayName[0]?.toUpperCase()}
+        </span>
+      )}
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-bold">{user.displayName}</span>
+        <span className="block truncate text-[11px] text-spotify">{user.nowPlaying?.title}</span>
+        <span className="block truncate text-[10px] text-white/45">{user.nowPlaying?.artists}</span>
+      </span>
+    </button>
   );
 }

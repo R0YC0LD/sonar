@@ -1,6 +1,24 @@
 export type Visibility = "global" | "friends" | "off";
 
+export interface LocalProfile {
+  id: string;
+  displayName: string;
+  photoURL: string;
+}
+
+export interface PlayableTrack {
+  id: string;
+  title: string;
+  artists: string;
+  album?: string;
+  albumArt: string;
+  duration: number;
+  previewUrl: string;
+  trackUrl?: string;
+}
+
 export interface NowPlaying {
+  id?: string;
   title: string;
   artists: string;
   album?: string;
@@ -14,9 +32,8 @@ export interface NowPlaying {
 
 export interface UserDoc {
   uid: string;
-  musicProvider?: "lastfm";
+  musicProvider?: "sonar";
   musicUserId: string;
-  lastfmUsername?: string;
   displayName: string;
   photoURL: string;
   country?: string;
@@ -25,12 +42,4 @@ export interface UserDoc {
   visibility: Visibility;
   nowPlaying: NowPlaying | null;
   lastActive: number; // ms epoch
-}
-
-export interface LastfmProfile {
-  id: string;
-  username: string;
-  displayName: string;
-  photoURL: string;
-  profileURL: string;
 }

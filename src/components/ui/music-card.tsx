@@ -102,7 +102,7 @@ export function MusicCard({ songs, autoRotate = false, className = "" }: MusicCa
           <div className="truncate text-[13px] text-white/60">{song.artists}</div>
         </div>
         <span className="shrink-0 rounded-full bg-spotify/15 px-2 py-1 text-[11px] font-bold text-spotify">
-          fm
+          sonar
         </span>
       </div>
 
@@ -121,7 +121,7 @@ export function MusicCard({ songs, autoRotate = false, className = "" }: MusicCa
         </div>
       ) : (
         <div className="mt-3 rounded-full bg-white/10 px-3 py-2 text-center text-[12px] font-medium text-white/55">
-          {(song.isPlaying ?? false) ? "Last.fm'e gore su an dinleniyor" : "Last.fm'de son dinlenen"}
+          {(song.isPlaying ?? false) ? "Sitede su an dinleniyor" : "Player duraklatildi"}
         </div>
       )}
 

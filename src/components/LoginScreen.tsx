@@ -2,24 +2,25 @@
 
 import { useState, type FormEvent } from "react";
 import { Globe } from "./Globe";
+import type { LocalProfile } from "@/types";
 
 interface Props {
-  onConnect: (username: string) => Promise<void>;
+  onConnect: (profile: Omit<LocalProfile, "id">) => Promise<void>;
   configured: boolean;
   error?: string | null;
 }
 
 export function LoginScreen({ onConnect, configured, error }: Props) {
-  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [photoURL, setPhotoURL] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const value = username.trim();
-    if (!value || submitting) return;
+    if (!displayName.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await onConnect(value);
+      await onConnect({ displayName, photoURL });
     } finally {
       setSubmitting(false);
     }
@@ -33,41 +34,54 @@ export function LoginScreen({ onConnect, configured, error }: Props) {
         </div>
       </div>
 
-      <div className="relative animate-fade-in">
+      <div className="relative w-full max-w-lg animate-fade-in">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-spotify">
           <span className="h-2 w-2 animate-pulse rounded-full bg-spotify" />
-          Canli · Dunyayi Dinle
+          Canli · Site ici player
         </div>
 
         <h1 className="bg-gradient-to-b from-white to-white/50 bg-clip-text text-5xl font-extrabold leading-tight text-transparent md:text-7xl">
           Sonar
         </h1>
         <p className="mx-auto mt-4 max-w-md text-base text-white/60 md:text-lg">
-          Last.fm kullanici adini gir, dunyanin dort bir yanindaki insanlarin
-          <span className="text-white/90"> su an ne dinlediklerini</span> canli olarak gor.
+          Profilini olustur, sitedeki player'dan muzik dinle ve dunyadaki diger
+          dinleyicilerle ayni haritada gorun.
         </p>
 
         {configured ? (
-          <form onSubmit={submit} className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row">
+          <form onSubmit={submit} className="glass mx-auto mt-8 flex flex-col gap-3 rounded-2xl p-4 text-left">
+            <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
+              Kullanici adi
+            </label>
             <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Last.fm kullanici adi"
-              autoComplete="username"
-              className="glass min-h-12 flex-1 rounded-full px-5 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-spotify"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Orn: R0YC0LD"
+              maxLength={40}
+              className="min-h-12 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-spotify"
             />
+
+            <label className="mt-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+              Profil fotografi URL'i
+            </label>
+            <input
+              value={photoURL}
+              onChange={(e) => setPhotoURL(e.target.value)}
+              placeholder="https://..."
+              className="min-h-12 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-spotify"
+            />
+
             <button
               type="submit"
-              disabled={!username.trim() || submitting}
-              className="min-h-12 rounded-full bg-spotify px-7 text-sm font-bold text-black shadow-lg shadow-spotify/30 transition hover:scale-105 hover:bg-spotify-dark active:scale-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+              disabled={!displayName.trim() || submitting}
+              className="mt-2 min-h-12 rounded-xl bg-spotify px-7 text-sm font-bold text-black shadow-lg shadow-spotify/30 transition hover:bg-spotify-dark active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? "Kontrol ediliyor..." : "Last.fm ile Baglan"}
+              {submitting ? "Hazirlaniyor..." : "Sisteme gir"}
             </button>
           </form>
         ) : (
           <div className="mx-auto mt-8 max-w-md rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-left text-sm text-amber-200">
-            <b>Kurulum gerekli.</b> Once <code>.env</code> dosyasina Firebase ve Last.fm
-            bilgilerini girmelisin. Detaylar icin <code>OKUBENI.md</code> dosyasina bak.
+            <b>Kurulum gerekli.</b> Firebase bilgileri eksik gorunuyor.
           </div>
         )}
 
@@ -76,11 +90,6 @@ export function LoginScreen({ onConnect, configured, error }: Props) {
             {error}
           </div>
         )}
-
-        <p className="mx-auto mt-6 max-w-sm text-xs text-white/35">
-          Spotify dinlemelerini gormek icin Last.fm hesabinda Spotify scrobbling'i acik olmali.
-          Konumun yalnizca sectigin gizlilik ayarina gore paylasilir.
-        </p>
 
         <div className="mt-5 flex items-center justify-center gap-3 text-xs text-white/40">
           <a href={`${import.meta.env.BASE_URL}privacy`} className="transition hover:text-white">

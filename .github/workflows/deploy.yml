@@ -17,8 +17,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,15 +30,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check Last.fm API key
-        run: test -n "$VITE_LASTFM_API_KEY"
-        env:
-          VITE_LASTFM_API_KEY: ${{ secrets.VITE_LASTFM_API_KEY }}
-
       - name: Build
         run: npm run build
-        env:
-          VITE_LASTFM_API_KEY: ${{ secrets.VITE_LASTFM_API_KEY }}
 
       # GitHub Pages tekil sayfa uygulamasi (SPA) icin: bilinmeyen yollarda
       # (/sonar/privacy, /sonar/terms ...) 404 yerine index.html gosterilsin.
