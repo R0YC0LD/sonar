@@ -53,9 +53,13 @@ export function LoginScreen({ onConnect, configured }: Props) {
         </p>
 
         <div className="mt-5 flex items-center justify-center gap-3 text-xs text-white/40">
-          <a href="/privacy" className="transition hover:text-white">Gizlilik Politikasi</a>
+          <a href={`${import.meta.env.BASE_URL}privacy`} className="transition hover:text-white">
+            Gizlilik Politikasi
+          </a>
           <span>·</span>
-          <a href="/terms" className="transition hover:text-white">Kullanim Sartlari</a>
+          <a href={`${import.meta.env.BASE_URL}terms`} className="transition hover:text-white">
+            Kullanim Sartlari
+          </a>
         </div>
       </div>
     </div>

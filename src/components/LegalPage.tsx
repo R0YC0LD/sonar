@@ -13,11 +13,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const BASE = import.meta.env.BASE_URL;
+
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="relative z-10 mx-auto min-h-full max-w-2xl px-5 py-10">
       <a
-        href="/"
+        href={BASE}
         className="mb-6 inline-flex items-center gap-2 text-sm text-white/60 transition hover:text-white"
       >
         ← Ana sayfaya dön
@@ -34,9 +36,9 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
         </div>
       </div>
       <div className="mt-4 flex justify-center gap-4 text-xs text-white/40">
-        <a href="/privacy" className="hover:text-white">Gizlilik Politikası</a>
+        <a href={`${BASE}privacy`} className="hover:text-white">Gizlilik Politikası</a>
         <span>·</span>
-        <a href="/terms" className="hover:text-white">Kullanım Şartları</a>
+        <a href={`${BASE}terms`} className="hover:text-white">Kullanım Şartları</a>
       </div>
     </div>
   );

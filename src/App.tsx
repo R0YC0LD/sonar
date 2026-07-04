@@ -16,8 +16,9 @@ function CallbackScreen() {
   useEffect(() => {
     completeSpotifyLogin().then((ok) => {
       setMsg(ok ? "Basarili! Yonlendiriliyorsun..." : "Baglanti basarisiz. Tekrar deneniyor...");
-      window.history.replaceState({}, "", "/");
-      setTimeout(() => (window.location.href = "/"), 600);
+      const home = import.meta.env.BASE_URL;
+      window.history.replaceState({}, "", home);
+      setTimeout(() => (window.location.href = home), 600);
     });
   }, []);
   return (
@@ -30,11 +31,11 @@ function CallbackScreen() {
   );
 }
 
-/* --------- Basit yol yonlendirici (client-side reload tabanli) --------- */
+/* --------- Basit yol yonlendirici (alt-yola duyarli: kok veya /sonar/) --------- */
 export default function App() {
   const path = typeof window !== "undefined" ? window.location.pathname : "/";
 
-  if (path === "/privacy") {
+  if (path.endsWith("/privacy")) {
     return (
       <>
         <div className="app-bg" />
@@ -42,7 +43,7 @@ export default function App() {
       </>
     );
   }
-  if (path === "/terms") {
+  if (path.endsWith("/terms")) {
     return (
       <>
         <div className="app-bg" />
@@ -55,7 +56,7 @@ export default function App() {
 
 function MainApp() {
   const isCallback =
-    typeof window !== "undefined" && window.location.pathname === "/callback";
+    typeof window !== "undefined" && window.location.pathname.endsWith("/callback");
 
   const presence = usePresence();
   const [settingsOpen, setSettingsOpen] = useState(false);
