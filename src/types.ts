@@ -6,6 +6,12 @@ export interface LocalProfile {
   photoURL: string;
 }
 
+export interface LocalProfileInput {
+  displayName: string;
+  photoURL: string;
+  photoFile?: File | null;
+}
+
 export interface PlayableTrack {
   id: string;
   title: string;

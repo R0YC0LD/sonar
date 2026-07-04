@@ -2,17 +2,18 @@
 
 import { useState, type FormEvent } from "react";
 import { Globe } from "./Globe";
-import type { LocalProfile } from "@/types";
+import type { LocalProfileInput } from "@/types";
 
 interface Props {
-  onConnect: (profile: Omit<LocalProfile, "id">) => Promise<void>;
+  onConnect: (profile: LocalProfileInput) => Promise<void>;
   configured: boolean;
   error?: string | null;
 }
 
 export function LoginScreen({ onConnect, configured, error }: Props) {
   const [displayName, setDisplayName] = useState("");
-  const [photoURL, setPhotoURL] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (e: FormEvent) => {
@@ -20,10 +21,15 @@ export function LoginScreen({ onConnect, configured, error }: Props) {
     if (!displayName.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await onConnect({ displayName, photoURL });
+      await onConnect({ displayName, photoURL: "", photoFile });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const choosePhoto = (file: File | null) => {
+    setPhotoFile(file);
+    setPreview(file ? URL.createObjectURL(file) : "");
   };
 
   return (
@@ -62,14 +68,29 @@ export function LoginScreen({ onConnect, configured, error }: Props) {
             />
 
             <label className="mt-2 text-xs font-semibold uppercase tracking-wider text-white/40">
-              Profil fotografi URL'i
+              Profil fotografi
             </label>
-            <input
-              value={photoURL}
-              onChange={(e) => setPhotoURL(e.target.value)}
-              placeholder="https://..."
-              className="min-h-12 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-spotify"
-            />
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/5 p-3 transition hover:bg-white/10">
+              {preview ? (
+                <img src={preview} alt="" className="h-14 w-14 rounded-xl object-cover" />
+              ) : (
+                <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-spotify/15 text-xl">
+                  +
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-white">
+                  {photoFile ? photoFile.name : "Cihazdan fotograf sec"}
+                </span>
+                <span className="block text-xs text-white/45">PNG, JPG veya WEBP · max 5 MB</span>
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => choosePhoto(e.target.files?.[0] || null)}
+                className="hidden"
+              />
+            </label>
 
             <button
               type="submit"

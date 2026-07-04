@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { LocalProfile, Visibility } from "@/types";
+import type { LocalProfile, LocalProfileInput, Visibility } from "@/types";
 
 interface Props {
   open: boolean;
@@ -9,7 +9,7 @@ interface Props {
   profile: LocalProfile | null;
   visibility: Visibility;
   onChangeVisibility: (v: Visibility) => void;
-  onUpdateProfile: (profile: Omit<LocalProfile, "id">) => void;
+  onUpdateProfile: (profile: LocalProfileInput) => Promise<void>;
   onRefreshLocation: () => void;
   onDisconnect: () => void;
 }
@@ -47,11 +47,32 @@ export function SettingsPanel({
 }: Props) {
   const [displayName, setDisplayName] = useState(profile?.displayName || "");
   const [photoURL, setPhotoURL] = useState(profile?.photoURL || "");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState(profile?.photoURL || "");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setDisplayName(profile?.displayName || "");
     setPhotoURL(profile?.photoURL || "");
+    setPreview(profile?.photoURL || "");
+    setPhotoFile(null);
   }, [profile]);
+
+  const choosePhoto = (file: File | null) => {
+    setPhotoFile(file);
+    setPreview(file ? URL.createObjectURL(file) : photoURL);
+  };
+
+  const save = async () => {
+    if (!displayName.trim() || saving) return;
+    setSaving(true);
+    try {
+      await onUpdateProfile({ displayName, photoURL, photoFile });
+      setPhotoFile(null);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <>
@@ -102,18 +123,33 @@ export function SettingsPanel({
             placeholder="Kullanici adi"
             className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none focus:border-spotify"
           />
-          <input
-            value={photoURL}
-            onChange={(e) => setPhotoURL(e.target.value)}
-            placeholder="Profil fotografi URL'i"
-            className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none focus:border-spotify"
-          />
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/5 p-3 transition hover:bg-white/10">
+            {preview ? (
+              <img src={preview} alt="" className="h-14 w-14 rounded-xl object-cover" />
+            ) : (
+              <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-spotify/15 text-xl">
+                +
+              </span>
+            )}
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">
+                {photoFile ? photoFile.name : "Cihazdan fotograf sec"}
+              </span>
+              <span className="block text-xs text-white/45">PNG, JPG veya WEBP · max 5 MB</span>
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => choosePhoto(e.target.files?.[0] || null)}
+              className="hidden"
+            />
+          </label>
           <button
-            onClick={() => onUpdateProfile({ displayName, photoURL })}
-            disabled={!displayName.trim()}
+            onClick={save}
+            disabled={!displayName.trim() || saving}
             className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-black disabled:opacity-50"
           >
-            Profili kaydet
+            {saving ? "Yukleniyor..." : "Profili kaydet"}
           </button>
         </div>
 

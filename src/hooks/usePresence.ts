@@ -10,7 +10,8 @@ import {
 } from "firebase/firestore";
 import { db, ensureAnonymousAuth, isFirebaseConfigured } from "@/lib/firebase";
 import { resolveLocation } from "@/lib/geo";
-import type { LocalProfile, NowPlaying, UserDoc, Visibility } from "@/types";
+import { uploadAvatar } from "@/lib/avatar";
+import type { LocalProfile, LocalProfileInput, NowPlaying, UserDoc, Visibility } from "@/types";
 
 const POLL_MS = 25_000;
 const ACTIVE_WINDOW_MS = 5 * 60_000;
@@ -29,8 +30,8 @@ export interface PresenceState {
   users: UserDoc[];
   me: UserDoc | null;
   friends: string[];
-  connectProfile: (profile: Omit<LocalProfile, "id">) => Promise<void>;
-  updateProfile: (profile: Omit<LocalProfile, "id">) => Promise<void>;
+  connectProfile: (profile: LocalProfileInput) => Promise<void>;
+  updateProfile: (profile: LocalProfileInput) => Promise<void>;
   setNowPlaying: (track: NowPlaying | null) => Promise<void>;
   disconnect: () => Promise<void>;
   changeVisibility: (v: Visibility) => Promise<void>;
@@ -53,11 +54,11 @@ function saveProfile(profile: LocalProfile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
-function makeProfile(uid: string, input: Omit<LocalProfile, "id">): LocalProfile {
+function makeProfile(uid: string, input: LocalProfileInput, photoURL: string): LocalProfile {
   return {
     id: uid,
     displayName: input.displayName.trim(),
-    photoURL: input.photoURL.trim(),
+    photoURL,
   };
 }
 
@@ -186,7 +187,7 @@ export function usePresence(): PresenceState {
   }, [configured, uid, profile, refreshLocation, writeMe]);
 
   const connectProfile = useCallback(
-    async (input: Omit<LocalProfile, "id">) => {
+    async (input: LocalProfileInput) => {
       if (!uid) {
         setError("Kimlik hazir degil. Sayfayi yenileyip tekrar dene.");
         return;
@@ -195,24 +196,41 @@ export function usePresence(): PresenceState {
         setError("Kullanici adi bos olamaz.");
         return;
       }
-      const next = makeProfile(uid, input);
-      saveProfile(next);
-      setProfile(next);
-      profileRef.current = next;
-      await refreshLocation();
-      await writeMe();
+      try {
+        const photoURL = input.photoFile
+          ? await uploadAvatar(uid, input.photoFile)
+          : input.photoURL.trim();
+        const next = makeProfile(uid, input, photoURL);
+        saveProfile(next);
+        setProfile(next);
+        profileRef.current = next;
+        await refreshLocation();
+        await writeMe();
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Profil fotografi yuklenemedi.");
+      }
     },
     [uid, refreshLocation, writeMe]
   );
 
   const updateProfile = useCallback(
-    async (input: Omit<LocalProfile, "id">) => {
+    async (input: LocalProfileInput) => {
       if (!uid) return;
-      const next = makeProfile(uid, input);
-      saveProfile(next);
-      setProfile(next);
-      profileRef.current = next;
-      await writeMe();
+      try {
+        const currentPhoto = profileRef.current?.photoURL || "";
+        const photoURL = input.photoFile
+          ? await uploadAvatar(uid, input.photoFile)
+          : input.photoURL.trim() || currentPhoto;
+        const next = makeProfile(uid, input, photoURL);
+        saveProfile(next);
+        setProfile(next);
+        profileRef.current = next;
+        await writeMe();
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Profil fotografi yuklenemedi.");
+      }
     },
     [uid, writeMe]
   );

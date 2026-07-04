@@ -5,6 +5,7 @@ o anda ne dinlediklerini konumlariyla birlikte 3D dunya uzerinde canli gosteren
 bir sosyal muzik haritasi uygulamasidir.
 
 - Site icinde kullanici adi ve profil fotografi belirleme
+- Profil fotografini cihazdan yukleme ve Firebase Storage'da saklama
 - Backend gerektirmeyen muzik arama ve preview player
 - O anda calan parcanin Firestore ile canli paylasimi
 - 3D dunya uzerinde aktif dinleyiciler
@@ -51,6 +52,13 @@ her ziyaretciye Firestore guvenlik kurallarinin calismasi icin bir `uid` verir.
 
 1. **Firestore Database** → **Create database** → **Production mode** sec.
 2. **Rules** sekmesinde `KURALLAR-firestore.rules.txt` icindeki metni yapistir ve yayinla.
+
+### e) Storage
+
+Profil fotograflari Firebase Storage'a yuklenir.
+
+1. **Storage** → **Get started** ile Storage'i ac.
+2. **Rules** sekmesinde `KURALLAR-storage.rules.txt` icindeki metni yapistir ve yayinla.
 
 ## 4) Ortam Degiskenleri
 
@@ -101,6 +109,7 @@ npm run build
 | Player | Public preview arama API | Sarki arama ve tarayicida calinabilir preview |
 | Kimlik | Firebase Anonymous Auth | Guvenlik kurallari icin `uid` |
 | Gercek zamanli | Firestore `onSnapshot` | Aktif kullanicilari ve calan parcayi canli yayinlar |
+| Avatar | Firebase Storage | Kullanici profil fotograflarini saklar |
 | Konum | Tarayici Geolocation + IP fallback | Enlem/boylam + sehir/ulke |
 
 Her kullanicinin kaydi `users/{uid}` altinda tutulur. Uygulama profil, konum,
