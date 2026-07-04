@@ -16,6 +16,12 @@ interface Arc {
   label?: string;
 }
 
+export interface GlobeView {
+  phi: number;
+  theta: number;
+  zoom: number;
+}
+
 interface GlobeProps {
   markers?: Marker[];
   /** Not: cobe 0.6.x kavis (arc) desteklemez; bu prop yalnizca API uyumu icin durur. */
@@ -36,6 +42,7 @@ interface GlobeProps {
   maxZoom?: number;
   onMarkerClick?: (id: string) => void;
   onZoomChange?: (zoom: number) => void;
+  onViewChange?: (view: GlobeView) => void;
 }
 
 export function Globe({
@@ -45,17 +52,18 @@ export function Globe({
   baseColor = [0.28, 0.32, 0.45],
   glowColor = [0.13, 0.45, 0.35],
   dark = 1,
-  mapBrightness = 11,
-  markerSize = 0.05,
+  mapBrightness = 13,
+  markerSize = 0.045,
   speed = 0.0025,
   theta = 0.25,
-  diffuse = 1.6,
-  mapSamples = 40000,
+  diffuse = 1.85,
+  mapSamples = 72000,
   enableZoom = true,
   minZoom = 1,
-  maxZoom = 5,
+  maxZoom = 7,
   onMarkerClick,
   onZoomChange,
+  onViewChange,
 }: GlobeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerInteracting = useRef<{ x: number; y: number } | null>(null);
@@ -66,7 +74,10 @@ export function Globe({
   const thetaOffsetRef = useRef(0);
   const isPausedRef = useRef(false);
   const onZoomChangeRef = useRef(onZoomChange);
+  const onViewChangeRef = useRef(onViewChange);
+  const lastViewEmitRef = useRef(0);
   onZoomChangeRef.current = onZoomChange;
+  onViewChangeRef.current = onViewChange;
 
   // Zoom (cobe'un native "scale" uniform'u ile)
   const zoomRef = useRef(1);
@@ -141,7 +152,7 @@ export function Globe({
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      applyZoom(zoomRef.current * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+      applyZoom(zoomRef.current * (e.deltaY < 0 ? 1.18 : 1 / 1.18));
     };
     const dist = (t: TouchList) =>
       Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
@@ -229,8 +240,10 @@ export function Globe({
                 thetaOffsetRef.current += (thetaMax - thetaOffsetRef.current) * 0.1;
               }
             }
-            state.phi = phi + phiOffsetRef.current + dragOffset.current.phi;
-            state.theta = L.theta + thetaOffsetRef.current + dragOffset.current.theta;
+            const renderPhi = phi + phiOffsetRef.current + dragOffset.current.phi;
+            const renderTheta = L.theta + thetaOffsetRef.current + dragOffset.current.theta;
+            state.phi = renderPhi;
+            state.theta = renderTheta;
             state.scale = zoomRef.current;
             state.dark = L.dark;
             state.mapBrightness = L.mapBrightness;
@@ -242,6 +255,15 @@ export function Globe({
               size: markerSize,
               color: L.markerColor,
             }));
+            const now = performance.now();
+            if (now - lastViewEmitRef.current > 120) {
+              lastViewEmitRef.current = now;
+              onViewChangeRef.current?.({
+                phi: renderPhi,
+                theta: renderTheta,
+                zoom: zoomRef.current,
+              });
+            }
           },
         });
         setTimeout(() => canvas && (canvas.style.opacity = "1"));
@@ -287,14 +309,14 @@ export function Globe({
       {enableZoom && (
         <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
           <button
-            onClick={() => applyZoom(zoomRef.current * 1.25)}
+            onClick={() => applyZoom(zoomRef.current * 1.35)}
             className="glass flex h-9 w-9 items-center justify-center rounded-full text-lg text-white/90 transition hover:bg-white/10"
             aria-label="Yakinlastir"
           >
             +
           </button>
           <button
-            onClick={() => applyZoom(zoomRef.current / 1.25)}
+            onClick={() => applyZoom(zoomRef.current / 1.35)}
             className="glass flex h-9 w-9 items-center justify-center rounded-full text-lg text-white/90 transition hover:bg-white/10"
             aria-label="Uzaklastir"
           >

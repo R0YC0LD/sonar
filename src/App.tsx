@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Globe } from "@/components/Globe";
+import type { GlobeView } from "@/components/Globe";
 import { MusicCard } from "@/components/ui/music-card";
 import { LoginScreen } from "@/components/LoginScreen";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -40,6 +41,7 @@ function MainApp() {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false); // mobil panel
   const [globeZoom, setGlobeZoom] = useState(1);
+  const [globeView, setGlobeView] = useState<GlobeView>({ phi: 0, theta: 0.25, zoom: 1 });
 
   const selectedUser = useMemo(
     () => presence.users.find((u) => u.uid === selectedUid) || null,
@@ -77,10 +79,23 @@ function MainApp() {
     ];
   }, [presence.me, selectedUser]);
 
+  const mapUsers = useMemo(() => {
+    const unique = new Map<string, UserDoc>();
+    if (presence.me?.location) unique.set(presence.me.uid, presence.me);
+    presence.users.forEach((u) => {
+      if (u.location) unique.set(u.uid, u);
+    });
+    return Array.from(unique.values());
+  }, [presence.me, presence.users]);
+
   const popupUsers = useMemo(() => {
-    if (globeZoom < 1.85) return [];
-    return presence.users.filter((u) => u.location && u.nowPlaying).slice(0, 10);
-  }, [globeZoom, presence.users]);
+    if (globeZoom < 1.35) return [];
+    return mapUsers
+      .map((user, index) => projectUserToGlobe(user, globeView, index))
+      .filter((item): item is ProjectedUser => Boolean(item))
+      .sort((a, b) => Number(Boolean(b.user.nowPlaying)) - Number(Boolean(a.user.nowPlaying)))
+      .slice(0, 12);
+  }, [globeZoom, globeView, mapUsers]);
 
   if (!presence.ready || presence.loading) {
     return (
@@ -159,6 +174,7 @@ function MainApp() {
                 markers={markers}
                 arcs={arcs}
                 onZoomChange={setGlobeZoom}
+                onViewChange={setGlobeView}
                 onMarkerClick={(id) => {
                   if (id !== presence.me?.uid) {
                     setSelectedUid(id);
@@ -168,12 +184,11 @@ function MainApp() {
               />
             </div>
 
-            {popupUsers.map((u, index) => (
+            {popupUsers.map((item) => (
               <UserBubble
-                key={u.uid}
-                user={u}
-                index={index}
-                onClick={() => setSelectedUid(u.uid)}
+                key={item.user.uid}
+                item={item}
+                onClick={() => setSelectedUid(item.user.uid)}
               />
             ))}
 
@@ -287,45 +302,89 @@ function MainApp() {
   );
 }
 
-function bubblePosition(user: UserDoc, index: number) {
-  const lat = user.location?.lat ?? 0;
-  const lng = user.location?.lng ?? 0;
-  const x = 50 + (lng / 180) * 34;
-  const y = 50 - (lat / 90) * 30;
-  const jitter = (index % 5) * 3;
+interface ProjectedUser {
+  user: UserDoc;
+  left: number;
+  top: number;
+  scale: number;
+  isEdge: boolean;
+}
+
+function projectUserToGlobe(user: UserDoc, view: GlobeView, index: number): ProjectedUser | null {
+  if (!user.location) return null;
+  const lat = (user.location.lat * Math.PI) / 180;
+  const lng = (user.location.lng * Math.PI) / 180;
+  const cosLat = Math.cos(lat);
+  const rotatedLng = lng + view.phi;
+  const x = cosLat * Math.sin(rotatedLng);
+  const y0 = Math.sin(lat);
+  const z0 = cosLat * Math.cos(rotatedLng);
+  const y = y0 * Math.cos(view.theta) - z0 * Math.sin(view.theta);
+  const z = y0 * Math.sin(view.theta) + z0 * Math.cos(view.theta);
+
+  if (z < 0.08) return null;
+
+  const zoomScale = Math.min(view.zoom, 3.5);
+  const overlapOffset = ((index % 3) - 1) * 1.8;
+  const left = 50 + x * 43 * zoomScale + overlapOffset;
+  const top = 50 - y * 43 * zoomScale - overlapOffset;
+  if (left < 5 || left > 95 || top < 6 || top > 94) return null;
+
   return {
-    left: `${Math.max(12, Math.min(82, x + jitter))}%`,
-    top: `${Math.max(10, Math.min(78, y - jitter))}%`,
+    user,
+    left,
+    top,
+    scale: Math.min(1.28, 0.82 + view.zoom * 0.15 + (user.nowPlaying ? 0.08 : 0)),
+    isEdge: z < 0.22,
   };
 }
 
 function UserBubble({
-  user,
-  index,
+  item,
   onClick,
 }: {
-  user: UserDoc;
-  index: number;
+  item: ProjectedUser;
   onClick: () => void;
 }) {
-  const style = bubblePosition(user, index);
+  const { user } = item;
   return (
     <button
       onClick={onClick}
-      className="glass absolute z-20 flex max-w-[210px] animate-fade-in items-center gap-2 rounded-2xl p-2 text-left shadow-2xl transition hover:scale-105"
-      style={style}
+      aria-label={`${user.displayName} dinleme popup`}
+      className={`glass absolute z-30 flex max-w-[230px] origin-bottom items-center gap-2 rounded-2xl border border-spotify/20 p-2 text-left shadow-2xl shadow-black/35 transition duration-300 hover:border-spotify/45 hover:bg-white/[0.08] ${
+        item.isEdge ? "opacity-75" : "opacity-100"
+      }`}
+      style={{
+        left: `${item.left}%`,
+        top: `${item.top}%`,
+        transform: `translate(-50%, -112%) scale(${item.scale})`,
+      }}
     >
       {user.photoURL ? (
-        <img src={user.photoURL} alt="" className="h-12 w-12 rounded-xl object-cover" />
+        <img
+          src={user.photoURL}
+          alt=""
+          className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-white/10"
+        />
       ) : (
-        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-spotify/20 text-sm font-bold">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-spotify/20 text-sm font-bold">
           {user.displayName[0]?.toUpperCase()}
         </span>
       )}
       <span className="min-w-0">
         <span className="block truncate text-xs font-bold">{user.displayName}</span>
-        <span className="block truncate text-[11px] text-spotify">{user.nowPlaying?.title}</span>
-        <span className="block truncate text-[10px] text-white/45">{user.nowPlaying?.artists}</span>
+        {user.nowPlaying ? (
+          <>
+            <span className="block truncate text-[11px] font-semibold text-spotify">
+              {user.nowPlaying.title}
+            </span>
+            <span className="block truncate text-[10px] text-white/45">
+              {user.nowPlaying.artists}
+            </span>
+          </>
+        ) : (
+          <span className="block truncate text-[11px] text-white/45">Su an bir sey calmiyor</span>
+        )}
       </span>
     </button>
   );
