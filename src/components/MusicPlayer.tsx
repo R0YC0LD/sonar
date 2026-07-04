@@ -61,6 +61,8 @@ export function MusicPlayer({ onNowPlaying }: Props) {
   const playerDomId = useId().replace(/:/g, "");
   const playerRef = useRef<any>(null);
   const currentRef = useRef<PlayableTrack | null>(null);
+  const resultsRef = useRef<PlayableTrack[]>([]);
+  const failedIdsRef = useRef<Set<string>>(new Set());
   const lastSyncRef = useRef(0);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PlayableTrack[]>([]);
@@ -71,6 +73,43 @@ export function MusicPlayer({ onNowPlaying }: Props) {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  resultsRef.current = results;
+
+  const loadTrack = async (track: PlayableTrack, options?: { resetFailures?: boolean; auto?: boolean }) => {
+    if (!ready || !playerRef.current) {
+      setError("YouTube player henuz hazir degil. Bir saniye sonra tekrar dene.");
+      return;
+    }
+    if (options?.resetFailures) failedIdsRef.current.clear();
+    currentRef.current = track;
+    setCurrent(track);
+    setProgress(0);
+    setDuration(track.duration || 0);
+    setPlaying(true);
+    setError(options?.auto ? "Onceki video oynatilamadi, uygun sonraki sonuc deneniyor." : null);
+    playerRef.current.loadVideoById(track.videoId);
+    await onNowPlaying(toNowPlaying(track, 0, track.duration || 0, true));
+  };
+
+  const playNextAvailable = () => {
+    const currentId = currentRef.current?.id;
+    if (currentId) failedIdsRef.current.add(currentId);
+    const next = resultsRef.current.find((track) => !failedIdsRef.current.has(track.id));
+    if (next) {
+      currentRef.current = next;
+      setCurrent(next);
+      setProgress(0);
+      setDuration(next.duration || 0);
+      setPlaying(true);
+      setError("Onceki video oynatilamadi, uygun sonraki sonuc deneniyor.");
+      playerRef.current?.loadVideoById(next.videoId);
+      onNowPlaying(toNowPlaying(next, 0, next.duration || 0, true)).catch(() => {});
+    } else {
+      setPlaying(false);
+      setError("Bu aramadaki YouTube sonuclari gomulu oynatmaya izin vermedi. Daha spesifik bir arama dene.");
+      onNowPlaying(null).catch(() => {});
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -102,10 +141,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
               onNowPlaying(toNowPlaying(track, sec, total, isPlaying)).catch(() => {});
             }
           },
-          onError: () => {
-            setError("Bu YouTube videosu gomulu oynatmaya izin vermiyor. Baska sonuc sec.");
-            setPlaying(false);
-          },
+          onError: () => playNextAvailable(),
         },
       });
     });
@@ -141,6 +177,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
     try {
       const tracks = await searchTracks(term);
       setResults(tracks);
+      failedIdsRef.current.clear();
       if (tracks.length === 0) setError("Bu arama icin YouTube sonucu bulunamadi.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Arama basarisiz oldu.");
@@ -150,18 +187,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
   };
 
   const playTrack = async (track: PlayableTrack) => {
-    if (!ready || !playerRef.current) {
-      setError("YouTube player henuz hazir degil. Bir saniye sonra tekrar dene.");
-      return;
-    }
-    currentRef.current = track;
-    setCurrent(track);
-    setProgress(0);
-    setDuration(0);
-    setPlaying(true);
-    setError(null);
-    playerRef.current.loadVideoById(track.videoId);
-    await onNowPlaying(toNowPlaying(track, 0, 0, true));
+    await loadTrack(track, { resetFailures: true });
   };
 
   const toggle = async () => {
