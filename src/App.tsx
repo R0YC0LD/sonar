@@ -110,9 +110,9 @@ function MainApp() {
     <>
       <div className="app-bg" />
 
-      <div className="relative z-10 flex h-full flex-col">
+      <div className="relative z-10 flex h-full min-h-dvh flex-col">
         {/* ---------- Header ---------- */}
-        <header className="flex items-center justify-between px-4 py-3 md:px-6">
+        <header className="flex items-center justify-between px-3 py-3 md:px-6">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-spotify/15">
               <span className="text-lg">🌐</span>
@@ -151,10 +151,10 @@ function MainApp() {
         </header>
 
         {/* ---------- Ana govde ---------- */}
-        <main className="relative flex min-h-0 flex-1 gap-4 px-4 pb-4 md:px-6">
+        <main className="relative flex min-h-0 flex-1 gap-4 px-3 pb-[50dvh] md:px-6 lg:pb-4">
           {/* Globe */}
           <div className="relative flex min-w-0 flex-1 items-center justify-center">
-            <div className="w-[min(92vw,72vh,760px)]">
+            <div className="w-[min(92vw,58vh,760px)] lg:w-[min(92vw,72vh,760px)]">
               <Globe
                 markers={markers}
                 arcs={arcs}
@@ -272,8 +272,10 @@ function MainApp() {
         onDisconnect={presence.disconnect}
       />
 
-      <div className="fixed bottom-4 right-4 z-20 h-[46vh] w-[min(92vw,360px)] lg:hidden">
-        <MusicPlayer onNowPlaying={presence.setNowPlaying} />
+      <div className="fixed inset-x-3 bottom-3 z-20 h-[min(46dvh,390px)] lg:hidden">
+        <div className="mx-auto h-full max-w-md">
+          <MusicPlayer onNowPlaying={presence.setNowPlaying} />
+        </div>
       </div>
 
       {presence.error && (

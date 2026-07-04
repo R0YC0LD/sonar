@@ -200,35 +200,36 @@ export function MusicPlayer({ onNowPlaying }: Props) {
   };
 
   const pct = duration ? Math.min(100, (progress / duration) * 100) : 0;
+  const hasSearched = loading || results.length > 0 || Boolean(error);
 
   return (
-    <div className="glass flex h-full min-h-0 flex-col overflow-hidden rounded-2xl shadow-2xl">
+    <div className="glass flex h-full min-h-0 flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/25">
       <div className="border-b border-white/10 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-sm font-bold">YouTube Player</h3>
+            <h3 className="text-sm font-bold">Muzik Player</h3>
             <p className="mt-0.5 truncate text-xs text-white/40">
-              Ara, cal, haritada ne dinledigin gorunsun.
+              YouTube'da ara, cal, haritada gorunsun.
             </p>
           </div>
-          <span className="shrink-0 rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-200">
-            Live
+          <span className="shrink-0 rounded-full border border-spotify/20 bg-spotify/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-spotify">
+            Online
           </span>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
-        <form onSubmit={submit} className="flex rounded-2xl border border-white/10 bg-white/[0.04] p-1.5">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 p-2.5 sm:gap-3 sm:p-3">
+        <form onSubmit={submit} className="flex rounded-[1.35rem] border border-white/10 bg-white/[0.05] p-1.5 shadow-inner shadow-black/20">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Sarki, sanatci veya video ara"
-            className="min-h-10 min-w-0 flex-1 rounded-xl bg-transparent px-3 text-sm font-medium outline-none placeholder:text-white/35"
+            className="min-h-11 min-w-0 flex-1 rounded-2xl bg-transparent px-3 text-sm font-semibold outline-none placeholder:font-medium placeholder:text-white/35"
           />
           <button
             type="submit"
             disabled={!query.trim() || loading}
-            className="rounded-xl bg-spotify px-4 text-sm font-bold text-black shadow-lg shadow-spotify/20 transition hover:bg-spotify-dark active:scale-[0.98] disabled:opacity-50"
+            className="min-w-[72px] rounded-2xl bg-spotify px-4 text-sm font-extrabold text-black shadow-lg shadow-spotify/20 transition hover:bg-spotify-dark active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? "..." : "Ara"}
           </button>
@@ -240,30 +241,47 @@ export function MusicPlayer({ onNowPlaying }: Props) {
           </div>
         )}
 
-        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-xl shadow-black/30">
-          {!current && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_center,rgba(29,185,84,0.16),transparent_58%),#090910] text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-xl">
-                ▶
-              </div>
-              <div className="text-sm font-bold text-white/80">Bir sarki ara ve cal</div>
-              <div className="max-w-[220px] text-xs text-white/40">
-                YouTube player burada acilir.
-              </div>
-            </div>
-          )}
-          <div className="youtube-player-frame aspect-video min-h-[210px] w-full">
+        <div
+          className={
+            current
+              ? "relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-xl shadow-black/30"
+              : "pointer-events-none fixed -left-[9999px] top-0 h-[220px] w-[390px] opacity-0"
+          }
+        >
+          <div className="youtube-player-frame aspect-video min-h-[168px] w-full sm:min-h-[210px]">
             <div id={playerDomId} className="h-full w-full" />
           </div>
         </div>
 
+        {!current && (
+          <div className="rounded-2xl border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.075),rgba(255,255,255,0.025))] p-3.5 shadow-inner shadow-white/[0.03] sm:p-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-spotify/25 bg-spotify/10">
+                <span className="ml-0.5 h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent border-l-spotify" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-extrabold text-white/90">
+                  {hasSearched ? "Bir sonuc sec" : "Sarki aramaya basla"}
+                </div>
+                <div className="mt-0.5 text-xs leading-relaxed text-white/45">
+                  {hasSearched
+                    ? "Secili video burada acilir; dinledigin parca profilinde ve haritada gorunur."
+                    : "Arama yaptiktan sonra listeden bir parcayi calabilirsin."}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {current && (
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.03] p-3">
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.03] p-2.5 shadow-lg shadow-black/20 sm:p-3">
             <div className="flex items-center gap-3">
               {current.albumArt ? (
-                <img src={current.albumArt} alt="" className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+                <img src={current.albumArt} alt="" className="h-14 w-14 rounded-2xl object-cover shadow-lg shadow-black/30 sm:h-16 sm:w-16" />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">▶</div>
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/10 sm:h-16 sm:w-16">
+                  <span className="ml-0.5 h-0 w-0 border-y-[8px] border-l-[12px] border-y-transparent border-l-white/70" />
+                </div>
               )}
               <div className="min-w-0 flex-1 self-stretch">
                 <div className="flex items-start justify-between gap-2">
@@ -277,7 +295,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
                 </div>
                 <button
                   onClick={toggle}
-                  className="mt-3 rounded-full bg-white px-4 py-1.5 text-xs font-bold text-black transition hover:bg-spotify"
+                  className="mt-3 rounded-full bg-white px-4 py-1.5 text-xs font-extrabold text-black transition hover:bg-spotify"
                 >
                   {playing ? "Duraklat" : "Cal"}
                 </button>
@@ -293,37 +311,58 @@ export function MusicPlayer({ onNowPlaying }: Props) {
           </div>
         )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/5 bg-black/10 p-1.5">
-          {results.length > 0 && (
-            <div className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-white/35">
-              Arama sonuclari
-            </div>
-          )}
-          {results.map((track) => (
-            <button
-              key={track.id}
-              onClick={() => playTrack(track)}
-              className={`mb-1 flex w-full items-center gap-3 rounded-xl p-2 text-left transition ${
-                current?.id === track.id ? "bg-spotify/15 ring-1 ring-spotify/30" : "hover:bg-white/5"
-              }`}
-            >
-              {track.albumArt ? (
-                <img src={track.albumArt} alt="" className="h-12 w-12 rounded-xl object-cover" />
-              ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">▶</div>
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">{track.title}</span>
-                <span className="block truncate text-xs text-white/45">{track.artists}</span>
+        {results.length > 0 ? (
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/5 bg-black/10 p-1.5">
+            <div className="flex items-center justify-between px-2 pb-1 pt-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
+                Arama sonuclari
               </span>
-              {current?.id === track.id && (
-                <span className="shrink-0 rounded-full bg-spotify px-2 py-1 text-[10px] font-bold text-black">
-                  {playing ? "Calıyor" : "Secili"}
+              <span className="text-[10px] font-semibold text-white/30">{results.length} sonuc</span>
+            </div>
+            {results.map((track) => (
+              <button
+                key={track.id}
+                onClick={() => playTrack(track)}
+                className={`mb-1 flex w-full items-center gap-3 rounded-2xl p-2 text-left transition ${
+                  current?.id === track.id ? "bg-spotify/15 ring-1 ring-spotify/30" : "hover:bg-white/5"
+                }`}
+              >
+                {track.albumArt ? (
+                  <img src={track.albumArt} alt="" className="h-12 w-12 rounded-2xl object-cover" />
+                ) : (
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10">
+                    <span className="ml-0.5 h-0 w-0 border-y-[7px] border-l-[10px] border-y-transparent border-l-white/60" />
+                  </div>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{track.title}</span>
+                  <span className="block truncate text-xs text-white/45">{track.artists}</span>
                 </span>
-              )}
-            </button>
-          ))}
-        </div>
+                {current?.id === track.id ? (
+                  <span className="shrink-0 rounded-full bg-spotify px-2 py-1 text-[10px] font-extrabold text-black">
+                    {playing ? "Caliyor" : "Secili"}
+                  </span>
+                ) : (
+                  <span className="shrink-0 rounded-full border border-white/10 px-2 py-1 text-[10px] font-bold text-white/45">
+                    {track.duration ? fmt(track.duration) : "Cal"}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl border border-white/5 bg-white/[0.025] px-4 py-6 text-center">
+            <div className="max-w-[230px]">
+              <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-spotify/40" />
+              <div className="text-xs font-bold uppercase tracking-wider text-white/35">
+                Henuz sonuc yok
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-white/40">
+                Bir sarki veya sanatci ara; oynatilabilir YouTube sonuclari burada listelenecek.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
