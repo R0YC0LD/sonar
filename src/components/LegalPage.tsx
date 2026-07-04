@@ -97,7 +97,7 @@ export function PrivacyPolicy() {
       <Section title="5. Üçüncü Taraf Hizmetler">
         <p>Platform aşağıdaki hizmetleri kullanır ve onların kendi gizlilik politikaları geçerlidir:</p>
         <ul className="ml-5 list-disc space-y-1">
-          <li><b>Müzik arama servisi</b> — çalınabilir preview ve kapak görseli</li>
+          <li><b>YouTube</b> — video arama, kapak görseli ve gömülü player ile oynatma</li>
           <li><b>Google Firebase</b> — kimlik doğrulama, veri saklama, barındırma</li>
           <li><b>Konum servisleri</b> — yaklaşık şehir/ülke belirleme (ipapi.co, bigdatacloud.net)</li>
         </ul>
@@ -125,7 +125,7 @@ export function PrivacyPolicy() {
       </Section>
 
       <p className="mt-6 text-xs text-white/40">
-        {SITE_NAME}, Spotify, Last.fm veya Apple ile bağlantılı, onlara ait veya onlar tarafından
+        {SITE_NAME}, Spotify, Last.fm, Apple veya YouTube ile bağlantılı, onlara ait veya onlar tarafından
         desteklenen bir hizmet değildir.
       </p>
     </Shell>
@@ -169,7 +169,7 @@ export function TermsOfService() {
 
       <Section title="4. İçerik ve Fikri Mülkiyet">
         <p>
-          Şarkı, albüm kapağı ve sanatçı bilgileri ilgili müzik veri sağlayıcıları ve hak
+          Şarkı/video başlığı, kapak görseli ve kanal bilgileri YouTube ve ilgili hak
           sahiplerinden gelen verilerle yalnızca görüntüleme/dinleme amacıyla gösterilir. Platform
           bu içeriğin sahibi değildir.
         </p>
@@ -198,7 +198,7 @@ export function TermsOfService() {
       </Section>
 
       <p className="mt-6 text-xs text-white/40">
-        {SITE_NAME}, Spotify, Last.fm veya Apple ile bağlantılı değildir. Müzik içerikleri ilgili
+        {SITE_NAME}, Spotify, Last.fm, Apple veya YouTube ile bağlantılı değildir. Müzik içerikleri ilgili
         sağlayıcıların kendi şartlarına tabi olabilir.
       </p>
     </Shell>

@@ -30,8 +30,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check YouTube API key
+        run: test -n "$VITE_YOUTUBE_API_KEY"
+        env:
+          VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
+
       - name: Build
         run: npm run build
+        env:
+          VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
 
       # GitHub Pages tekil sayfa uygulamasi (SPA) icin: bilinmeyen yollarda
       # (/sonar/privacy, /sonar/terms ...) 404 yerine index.html gosterilsin.

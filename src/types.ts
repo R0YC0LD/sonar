@@ -14,12 +14,13 @@ export interface LocalProfileInput {
 
 export interface PlayableTrack {
   id: string;
+  provider: "youtube";
+  videoId: string;
   title: string;
   artists: string;
   album?: string;
   albumArt: string;
   duration: number;
-  previewUrl: string;
   trackUrl?: string;
 }
 

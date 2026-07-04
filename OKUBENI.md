@@ -6,7 +6,8 @@ bir sosyal muzik haritasi uygulamasidir.
 
 - Site icinde kullanici adi ve profil fotografi belirleme
 - Profil fotografini cihazdan yukleme ve Firebase Storage'da saklama
-- Backend gerektirmeyen muzik arama ve preview player
+- YouTube Data API ile muzik/video arama
+- YouTube IFrame Player ile sitede oynatma
 - O anda calan parcanin Firestore ile canli paylasimi
 - 3D dunya uzerinde aktif dinleyiciler
 - Zoom yapinca kullanici/profil/sarki popup'lari
@@ -18,6 +19,7 @@ bir sosyal muzik haritasi uygulamasidir.
 
 - Node.js 18+
 - Bir Google/Firebase hesabi
+- YouTube Data API v3 API key
 
 ## 2) Kurulum
 
@@ -75,9 +77,18 @@ VITE_FIREBASE_PROJECT_ID=...
 VITE_FIREBASE_STORAGE_BUCKET=...
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
+
+VITE_YOUTUBE_API_KEY=...
 ```
 
-Ek Spotify veya Last.fm API key gerekmez.
+Canli GitHub Pages yayininda repo ayarlarina `VITE_YOUTUBE_API_KEY` adli GitHub Secret
+eklenmelidir. YouTube API key icin referrer kisitlarina su adresleri ekle:
+
+```text
+https://r0yc0ld.github.io/*
+http://127.0.0.1:5173/*
+http://localhost:5173/*
+```
 
 ## 5) Gelistirme
 
@@ -106,7 +117,7 @@ npm run build
 |--------|-----------|-------|
 | Arayuz | React + Vite + Tailwind | 3D globe, player, kartlar, paneller |
 | Globe | `cobe` | WebGL dunya + marker |
-| Player | Public preview arama API | Sarki arama ve tarayicida calinabilir preview |
+| Player | YouTube Data API + IFrame API | Video arama ve gorunur YouTube player ile oynatma |
 | Kimlik | Firebase Anonymous Auth | Guvenlik kurallari icin `uid` |
 | Gercek zamanli | Firestore `onSnapshot` | Aktif kullanicilari ve calan parcayi canli yayinlar |
 | Avatar | Firebase Storage | Kullanici profil fotograflarini saklar |

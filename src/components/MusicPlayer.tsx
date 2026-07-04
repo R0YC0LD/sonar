@@ -1,11 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { searchTracks } from "@/lib/musicSearch";
 import type { NowPlaying, PlayableTrack } from "@/types";
 
+declare global {
+  interface Window {
+    YT?: any;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 interface Props {
   onNowPlaying: (track: NowPlaying | null) => Promise<void>;
+}
+
+let youtubeApiPromise: Promise<void> | null = null;
+
+function loadYouTubeApi(): Promise<void> {
+  if (window.YT?.Player) return Promise.resolve();
+  if (youtubeApiPromise) return youtubeApiPromise;
+
+  youtubeApiPromise = new Promise((resolve) => {
+    const previous = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      previous?.();
+      resolve();
+    };
+    if (!document.querySelector("script[src='https://www.youtube.com/iframe_api']")) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    }
+  });
+  return youtubeApiPromise;
 }
 
 function fmt(sec: number): string {
@@ -14,14 +42,14 @@ function fmt(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function toNowPlaying(track: PlayableTrack, progress: number, isPlaying: boolean): NowPlaying {
+function toNowPlaying(track: PlayableTrack, progress: number, duration: number, isPlaying: boolean): NowPlaying {
   return {
     id: track.id,
     title: track.title,
     artists: track.artists,
     album: track.album,
     albumArt: track.albumArt,
-    duration: track.duration,
+    duration,
     progress,
     isPlaying,
     trackUrl: track.trackUrl,
@@ -30,15 +58,79 @@ function toNowPlaying(track: PlayableTrack, progress: number, isPlaying: boolean
 }
 
 export function MusicPlayer({ onNowPlaying }: Props) {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const playerDomId = useId().replace(/:/g, "");
+  const playerRef = useRef<any>(null);
+  const currentRef = useRef<PlayableTrack | null>(null);
   const lastSyncRef = useRef(0);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PlayableTrack[]>([]);
   const [current, setCurrent] = useState<PlayableTrack | null>(null);
   const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(30);
+  const [duration, setDuration] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadYouTubeApi().then(() => {
+      if (cancelled || playerRef.current) return;
+      playerRef.current = new window.YT.Player(playerDomId, {
+        width: "100%",
+        height: "220",
+        playerVars: {
+          playsinline: 1,
+          rel: 0,
+          origin: window.location.origin,
+        },
+        events: {
+          onReady: () => setReady(true),
+          onStateChange: (event: any) => {
+            const track = currentRef.current;
+            if (!track || !playerRef.current) return;
+            const state = event.data;
+            const isPlaying = state === window.YT.PlayerState.PLAYING;
+            const isPaused =
+              state === window.YT.PlayerState.PAUSED || state === window.YT.PlayerState.ENDED;
+            if (isPlaying || isPaused) {
+              const sec = Math.floor(playerRef.current.getCurrentTime?.() || 0);
+              const total = Math.floor(playerRef.current.getDuration?.() || 0);
+              setPlaying(isPlaying);
+              setProgress(sec);
+              setDuration(total);
+              onNowPlaying(toNowPlaying(track, sec, total, isPlaying)).catch(() => {});
+            }
+          },
+          onError: () => {
+            setError("Bu YouTube videosu gomulu oynatmaya izin vermiyor. Baska sonuc sec.");
+            setPlaying(false);
+          },
+        },
+      });
+    });
+    return () => {
+      cancelled = true;
+      playerRef.current?.destroy?.();
+      playerRef.current = null;
+    };
+  }, [onNowPlaying, playerDomId]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!playerRef.current || !currentRef.current) return;
+      const sec = Math.floor(playerRef.current.getCurrentTime?.() || 0);
+      const total = Math.floor(playerRef.current.getDuration?.() || 0);
+      setProgress(sec);
+      setDuration(total);
+      const now = Date.now();
+      if (now - lastSyncRef.current > 2500) {
+        lastSyncRef.current = now;
+        onNowPlaying(toNowPlaying(currentRef.current, sec, total, playing)).catch(() => {});
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [onNowPlaying, playing]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -49,7 +141,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
     try {
       const tracks = await searchTracks(term);
       setResults(tracks);
-      if (tracks.length === 0) setError("Bu arama icin calinabilir sonuc bulunamadi.");
+      if (tracks.length === 0) setError("Bu arama icin YouTube sonucu bulunamadi.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Arama basarisiz oldu.");
     } finally {
@@ -58,67 +150,36 @@ export function MusicPlayer({ onNowPlaying }: Props) {
   };
 
   const playTrack = async (track: PlayableTrack) => {
+    if (!ready || !playerRef.current) {
+      setError("YouTube player henuz hazir degil. Bir saniye sonra tekrar dene.");
+      return;
+    }
+    currentRef.current = track;
     setCurrent(track);
     setProgress(0);
-    setDuration(track.duration);
-    await onNowPlaying(toNowPlaying(track, 0, true));
-    window.setTimeout(() => {
-      audioRef.current?.play().catch(() => {
-        setError("Tarayici calmayi engelledi. Tekrar play'e bas.");
-      });
-    }, 0);
+    setDuration(0);
+    setPlaying(true);
+    setError(null);
+    playerRef.current.loadVideoById(track.videoId);
+    await onNowPlaying(toNowPlaying(track, 0, 0, true));
   };
 
   const toggle = async () => {
-    if (!audioRef.current || !current) return;
-    if (audioRef.current.paused) {
-      await audioRef.current.play();
-      await onNowPlaying(toNowPlaying(current, Math.floor(audioRef.current.currentTime), true));
+    if (!playerRef.current || !currentRef.current) return;
+    if (playing) {
+      playerRef.current.pauseVideo();
     } else {
-      audioRef.current.pause();
-      await onNowPlaying(toNowPlaying(current, Math.floor(audioRef.current.currentTime), false));
+      playerRef.current.playVideo();
     }
   };
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !current) return;
-
-    const onLoaded = () => setDuration(Math.round(audio.duration || current.duration || 30));
-    const onTime = () => {
-      const sec = Math.floor(audio.currentTime || 0);
-      setProgress(sec);
-      const now = Date.now();
-      if (now - lastSyncRef.current > 2500) {
-        lastSyncRef.current = now;
-        onNowPlaying(toNowPlaying(current, sec, !audio.paused)).catch(() => {});
-      }
-    };
-    const onPause = () => onNowPlaying(toNowPlaying(current, Math.floor(audio.currentTime || 0), false));
-    const onPlay = () => onNowPlaying(toNowPlaying(current, Math.floor(audio.currentTime || 0), true));
-    const onEnded = () => onNowPlaying(toNowPlaying(current, Math.floor(audio.currentTime || 0), false));
-
-    audio.addEventListener("loadedmetadata", onLoaded);
-    audio.addEventListener("timeupdate", onTime);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("ended", onEnded);
-    return () => {
-      audio.removeEventListener("loadedmetadata", onLoaded);
-      audio.removeEventListener("timeupdate", onTime);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, [current, onNowPlaying]);
 
   const pct = duration ? Math.min(100, (progress / duration) * 100) : 0;
 
   return (
     <div className="glass flex h-full min-h-0 flex-col rounded-2xl">
       <div className="border-b border-white/10 px-4 py-3">
-        <h3 className="text-sm font-bold">Sonar Player</h3>
-        <p className="mt-0.5 text-xs text-white/40">Ara, cal, herkes ne dinledigini gorsun.</p>
+        <h3 className="text-sm font-bold">YouTube Player</h3>
+        <p className="mt-0.5 text-xs text-white/40">YouTube'da ara, cal, herkes ne dinledigini gorsun.</p>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col p-3">
@@ -126,7 +187,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Sarki, sanatci veya album ara"
+            placeholder="Sarki, sanatci veya video ara"
             className="min-h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-sm outline-none placeholder:text-white/35 focus:border-spotify"
           />
           <button
@@ -140,13 +201,17 @@ export function MusicPlayer({ onNowPlaying }: Props) {
 
         {error && <div className="mt-2 rounded-xl bg-red-500/10 p-2 text-xs text-red-100">{error}</div>}
 
+        <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black">
+          <div id={playerDomId} className="aspect-video w-full min-h-[200px]" />
+        </div>
+
         {current && (
           <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-3">
             <div className="flex gap-3">
               {current.albumArt ? (
-                <img src={current.albumArt} alt="" className="h-16 w-16 rounded-xl object-cover" />
+                <img src={current.albumArt} alt="" className="h-14 w-14 rounded-xl object-cover" />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white/10">♪</div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/10">▶</div>
               )}
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold">{current.title}</div>
@@ -155,7 +220,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
                   onClick={toggle}
                   className="mt-2 rounded-full bg-white px-4 py-1.5 text-xs font-bold text-black"
                 >
-                  {audioRef.current?.paused === false ? "Duraklat" : "Cal"}
+                  {playing ? "Duraklat" : "Cal"}
                 </button>
               </div>
             </div>
@@ -164,7 +229,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
             </div>
             <div className="mt-1 flex justify-between text-[11px] tabular-nums text-white/45">
               <span>{fmt(progress)}</span>
-              <span>{fmt(duration)}</span>
+              <span>{duration ? fmt(duration) : "--:--"}</span>
             </div>
           </div>
         )}
@@ -179,7 +244,7 @@ export function MusicPlayer({ onNowPlaying }: Props) {
               {track.albumArt ? (
                 <img src={track.albumArt} alt="" className="h-11 w-11 rounded-lg object-cover" />
               ) : (
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/10">♪</div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/10">▶</div>
               )}
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{track.title}</span>
@@ -189,8 +254,6 @@ export function MusicPlayer({ onNowPlaying }: Props) {
           ))}
         </div>
       </div>
-
-      <audio ref={audioRef} src={current?.previewUrl} preload="metadata" />
     </div>
   );
 }
