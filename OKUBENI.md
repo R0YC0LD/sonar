@@ -65,6 +65,20 @@ sadece her kullanıcıya güvenlik kurallarının çalışması için bir `uid` 
 3. **APIs used**: "Web API" seçili olsun.
 4. **Client ID**'yi kopyala (Client Secret'a GEREK YOK).
 
+### Başkaları Spotify ile bağlanamıyorsa
+Spotify yeni uygulamaları varsayılan olarak **Development mode** ile açar. Bu modda
+uygulamayı yalnızca uygulama sahibi ve Dashboard'da izin verilen test kullanıcıları
+kullanabilir. Başka biri bağlanınca Spotify token verse bile Web API istekleri 403
+dönebilir; uygulama bu yüzden tekrar giriş ekranına döner.
+
+Test kullanıcılarını eklemek için:
+1. Spotify Developer Dashboard'a gir.
+2. Uygulamanı aç → **Settings**.
+3. **Users Management** sekmesine gir.
+4. **Add new user** ile kullanıcının Spotify hesabındaki e-posta adresini ekle.
+
+Daha geniş kitleye açmak için Spotify'ın **Extended quota mode** onayı gerekir.
+
 ## 5) Ortam Değişkenleri (`.env`)
 `.env.example` dosyasını `.env` olarak kopyala ve doldur:
 

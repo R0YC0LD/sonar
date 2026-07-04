@@ -21,6 +21,16 @@ interface TokenBundle {
 
 export const isSpotifyConfigured = Boolean(CLIENT_ID);
 
+export class SpotifyApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "SpotifyApiError";
+    this.status = status;
+  }
+}
+
 /* ----------------------- PKCE yardimcilari ----------------------- */
 
 function randomString(length: number): string {
@@ -166,7 +176,18 @@ export async function fetchSpotifyProfile(): Promise<SpotifyProfile | null> {
   const res = await fetch("https://api.spotify.com/v1/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) return null;
+  if (res.status === 403) {
+    throw new SpotifyApiError(
+      403,
+      "Bu Spotify hesabi uygulamanin test kullanicilari listesinde degil. Spotify Developer Dashboard > Settings > Users Management alanindan kullanicinin Spotify e-posta adresini eklemelisin."
+    );
+  }
+  if (!res.ok) {
+    throw new SpotifyApiError(
+      res.status,
+      "Spotify profili alinamadi. Lutfen biraz sonra tekrar dene."
+    );
+  }
   const data = await res.json();
   return {
     id: data.id,

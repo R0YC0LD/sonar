@@ -16,6 +16,7 @@ import {
   fetchSpotifyProfile,
   hasSpotifySession,
   isSpotifyConfigured,
+  SpotifyApiError,
 } from "@/lib/spotify";
 import { resolveLocation } from "@/lib/geo";
 import type { NowPlaying, SpotifyProfile, UserDoc, Visibility } from "@/types";
@@ -116,13 +117,26 @@ export function usePresence(): PresenceState {
       setProfile(null);
       return;
     }
-    fetchSpotifyProfile().then((p) => {
-      if (p) setProfile(p);
-      else {
+    fetchSpotifyProfile()
+      .then((p) => {
+        if (p) {
+          setError(null);
+          setProfile(p);
+        } else {
+          clearSpotifySession();
+          setConnected(false);
+        }
+      })
+      .catch((e) => {
         clearSpotifySession();
         setConnected(false);
-      }
-    });
+        setProfile(null);
+        if (e instanceof SpotifyApiError) {
+          setError(e.message);
+        } else {
+          setError("Spotify baglantisi tamamlanamadi. Lutfen tekrar dene.");
+        }
+      });
   }, [connected]);
 
   /* ---------- 5) Konumu coz ---------- */
@@ -192,7 +206,10 @@ export function usePresence(): PresenceState {
   }, [configured, uid, profile, writeMe, refreshLocation]);
 
   /* ---------- Aksiyonlar ---------- */
-  const connectSpotify = useCallback(() => beginSpotifyLogin(), []);
+  const connectSpotify = useCallback(() => {
+    setError(null);
+    beginSpotifyLogin();
+  }, []);
 
   const disconnect = useCallback(async () => {
     clearSpotifySession();

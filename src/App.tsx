@@ -156,7 +156,11 @@ function MainApp() {
     return (
       <>
         <div className="app-bg" />
-        <LoginScreen onConnect={presence.connectSpotify} configured={presence.configured} />
+        <LoginScreen
+          onConnect={presence.connectSpotify}
+          configured={presence.configured}
+          error={presence.error}
+        />
       </>
     );
   }

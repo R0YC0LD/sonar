@@ -5,9 +5,10 @@ import { Globe } from "./Globe";
 interface Props {
   onConnect: () => void;
   configured: boolean;
+  error?: string | null;
 }
 
-export function LoginScreen({ onConnect, configured }: Props) {
+export function LoginScreen({ onConnect, configured, error }: Props) {
   return (
     <div className="relative z-10 flex min-h-full flex-col items-center justify-center px-6 py-10 text-center">
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-40">
@@ -44,6 +45,12 @@ export function LoginScreen({ onConnect, configured }: Props) {
           <div className="mx-auto mt-8 max-w-md rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-left text-sm text-amber-200">
             <b>Kurulum gerekli.</b> Once <code>.env</code> dosyasina Firebase ve Spotify
             bilgilerini girmelisin. Detaylar icin <code>OKUBENI.md</code> dosyasina bak.
+          </div>
+        )}
+
+        {error && (
+          <div className="mx-auto mt-4 max-w-md rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-left text-sm text-red-100">
+            {error}
           </div>
         )}
 
