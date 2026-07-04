@@ -2,40 +2,46 @@
 
 import { useState, type FormEvent } from "react";
 import { Globe } from "./Globe";
-import type { LocalProfileInput } from "@/types";
+import type { LoginInput, RegisterInput } from "@/types";
 
 interface Props {
-  onConnect: (profile: LocalProfileInput) => Promise<void>;
+  onLogin: (input: LoginInput) => Promise<void>;
+  onRegister: (input: RegisterInput) => Promise<void>;
   configured: boolean;
   error?: string | null;
 }
 
-export function LoginScreen({ onConnect, configured, error }: Props) {
+type Mode = "login" | "register";
+
+export function LoginScreen({ onLogin, onRegister, configured, error }: Props) {
+  const [mode, setMode] = useState<Mode>("login");
   const [displayName, setDisplayName] = useState("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const isRegister = mode === "register";
+  const canSubmit = email.trim() && password.length >= 6 && (!isRegister || displayName.trim());
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!displayName.trim() || submitting) return;
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     try {
-      await onConnect({ displayName, photoURL: "", photoFile });
+      if (isRegister) {
+        await onRegister({ displayName, email, password });
+      } else {
+        await onLogin({ email, password });
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const choosePhoto = (file: File | null) => {
-    setPhotoFile(file);
-    setPreview(file ? URL.createObjectURL(file) : "");
-  };
-
   return (
-    <div className="relative z-10 flex min-h-full flex-col items-center justify-center px-6 py-10 text-center">
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-40">
-        <div className="w-[min(80vw,640px)]">
+    <div className="relative z-10 flex min-h-full flex-col items-center justify-center px-4 py-7 text-center sm:px-6 sm:py-10">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-35">
+        <div className="w-[min(92vw,640px)]">
           <Globe enableZoom={false} speed={0.004} markers={[]} />
         </div>
       </div>
@@ -46,59 +52,80 @@ export function LoginScreen({ onConnect, configured, error }: Props) {
           Canli · Site ici player
         </div>
 
-        <h1 className="bg-gradient-to-b from-white to-white/50 bg-clip-text text-5xl font-extrabold leading-tight text-transparent md:text-7xl">
+        <h1 className="bg-gradient-to-b from-white to-white/50 bg-clip-text text-5xl font-extrabold leading-tight text-transparent sm:text-6xl md:text-7xl">
           Sonar
         </h1>
-        <p className="mx-auto mt-4 max-w-md text-base text-white/60 md:text-lg">
-          Profilini olustur, sitedeki player'dan muzik dinle ve dunyadaki diger
-          dinleyicilerle ayni haritada gorun.
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/60 sm:text-base md:text-lg">
+          Hesabinla giris yap, muzik dinle ve dinleyicileri ayni haritada gor.
         </p>
 
         {configured ? (
-          <form onSubmit={submit} className="glass mx-auto mt-8 flex flex-col gap-3 rounded-2xl p-4 text-left">
+          <form onSubmit={submit} className="glass mx-auto mt-7 flex flex-col gap-3 rounded-2xl p-3 text-left shadow-2xl shadow-black/25 sm:p-4">
+            <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-black/20 p-1">
+              {(["login", "register"] as Mode[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setMode(item)}
+                  className={`rounded-xl px-3 py-2 text-sm font-bold transition ${
+                    mode === item ? "bg-spotify text-black" : "text-white/50 hover:text-white"
+                  }`}
+                >
+                  {item === "login" ? "Giris" : "Kayit"}
+                </button>
+              ))}
+            </div>
+
+            {isRegister && (
+              <>
+                <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  Kullanici adi
+                </label>
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Orn: R0YC0LD"
+                  maxLength={40}
+                  className="min-h-12 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-spotify"
+                />
+              </>
+            )}
+
             <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
-              Kullanici adi
+              E-posta
             </label>
             <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Orn: R0YC0LD"
-              maxLength={40}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              autoComplete="email"
+              placeholder="ornek@mail.com"
               className="min-h-12 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-spotify"
             />
 
-            <label className="mt-2 text-xs font-semibold uppercase tracking-wider text-white/40">
-              Profil fotografi
+            <label className="text-xs font-semibold uppercase tracking-wider text-white/40">
+              Sifre
             </label>
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/5 p-3 transition hover:bg-white/10">
-              {preview ? (
-                <img src={preview} alt="" className="h-14 w-14 rounded-xl object-cover" />
-              ) : (
-                <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-spotify/15 text-xl">
-                  +
-                </span>
-              )}
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-white">
-                  {photoFile ? photoFile.name : "Cihazdan fotograf sec"}
-                </span>
-                <span className="block text-xs text-white/45">PNG, JPG veya WEBP · max 5 MB</span>
-              </span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => choosePhoto(e.target.files?.[0] || null)}
-                className="hidden"
-              />
-            </label>
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              autoComplete={isRegister ? "new-password" : "current-password"}
+              placeholder="En az 6 karakter"
+              className="min-h-12 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-spotify"
+            />
 
             <button
               type="submit"
-              disabled={!displayName.trim() || submitting}
-              className="mt-2 min-h-12 rounded-xl bg-spotify px-7 text-sm font-bold text-black shadow-lg shadow-spotify/30 transition hover:bg-spotify-dark active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canSubmit || submitting}
+              className="mt-1 min-h-12 rounded-xl bg-spotify px-7 text-sm font-bold text-black shadow-lg shadow-spotify/30 transition hover:bg-spotify-dark active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? "Hazirlaniyor..." : "Sisteme gir"}
+              {submitting ? "Hazirlaniyor..." : isRegister ? "Hesap olustur" : "Giris yap"}
             </button>
+
+            <p className="px-1 text-center text-xs leading-relaxed text-white/40">
+              Profil fotografini girdikten sonra ayarlardan cihazindan yukleyebilirsin.
+            </p>
           </form>
         ) : (
           <div className="mx-auto mt-8 max-w-md rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-left text-sm text-amber-200">

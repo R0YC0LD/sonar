@@ -1,17 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { db, ensureAnonymousAuth, isFirebaseConfigured } from "@/lib/firebase";
+import {
+  createAccountWithEmail,
+  db,
+  isFirebaseConfigured,
+  listenAuthState,
+  signInWithEmail,
+  signOutCurrentUser,
+} from "@/lib/firebase";
 import { resolveLocation } from "@/lib/geo";
 import { uploadAvatar } from "@/lib/avatar";
-import type { LocalProfile, LocalProfileInput, NowPlaying, UserDoc, Visibility } from "@/types";
+import type {
+  LocalProfile,
+  LocalProfileInput,
+  LoginInput,
+  NowPlaying,
+  RegisterInput,
+  UserDoc,
+  Visibility,
+} from "@/types";
 
 const POLL_MS = 25_000;
 const ACTIVE_WINDOW_MS = 5 * 60_000;
@@ -30,7 +44,8 @@ export interface PresenceState {
   users: UserDoc[];
   me: UserDoc | null;
   friends: string[];
-  connectProfile: (profile: LocalProfileInput) => Promise<void>;
+  login: (input: LoginInput) => Promise<void>;
+  register: (input: RegisterInput) => Promise<void>;
   updateProfile: (profile: LocalProfileInput) => Promise<void>;
   setNowPlaying: (track: NowPlaying | null) => Promise<void>;
   disconnect: () => Promise<void>;
@@ -67,7 +82,7 @@ export function usePresence(): PresenceState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uid, setUid] = useState<string | null>(null);
-  const [profile, setProfile] = useState<LocalProfile | null>(() => loadProfile());
+  const [profile, setProfile] = useState<LocalProfile | null>(null);
   const [visibility, setVisibility] = useState<Visibility>(
     (localStorage.getItem(VIS_KEY) as Visibility) || "global"
   );
@@ -75,7 +90,7 @@ export function usePresence(): PresenceState {
   const [friends, setFriends] = useState<string[]>([]);
 
   const configured = isFirebaseConfigured;
-  const connected = Boolean(profile);
+  const connected = Boolean(uid && profile);
   const profileRef = useRef<LocalProfile | null>(profile);
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
   const placeRef = useRef<{ city?: string; country?: string }>({});
@@ -91,21 +106,51 @@ export function usePresence(): PresenceState {
       return;
     }
     let mounted = true;
-    ensureAnonymousAuth()
-      .then((user) => {
+    const unsub = listenAuthState(async (user) => {
+      try {
         if (!mounted) return;
+        if (!user) {
+          setUid(null);
+          setProfile(null);
+          setAllUsers([]);
+          setFriends([]);
+          setReady(true);
+          setLoading(false);
+          return;
+        }
         setUid(user.uid);
+        const cached = loadProfile();
+        if (cached?.id === user.uid) {
+          setProfile(cached);
+          profileRef.current = cached;
+        }
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (snap.exists()) {
+          const data = snap.data() as UserDoc;
+          const next = makeProfile(
+            user.uid,
+            { displayName: data.displayName, photoURL: data.photoURL || "" },
+            data.photoURL || ""
+          );
+          saveProfile(next);
+          setProfile(next);
+          profileRef.current = next;
+          const nextVisibility = data.visibility || visibilityRef.current;
+          setVisibility(nextVisibility);
+          visibilityRef.current = nextVisibility;
+        }
         setReady(true);
         setLoading(false);
-      })
-      .catch((e) => {
+      } catch (e) {
         if (!mounted) return;
-        setError("Firebase baglantisi kurulamadi: " + e.message);
+        setError("Firebase oturumu yuklenemedi: " + (e instanceof Error ? e.message : "Bilinmeyen hata"));
         setLoading(false);
         setReady(true);
-      });
+      }
+    });
     return () => {
       mounted = false;
+      unsub();
     };
   }, [configured]);
 
@@ -174,7 +219,11 @@ export function usePresence(): PresenceState {
     tick();
     const id = setInterval(tick, POLL_MS);
     const onUnload = () => {
-      const stale = { lastActive: Date.now() - ACTIVE_WINDOW_MS - 1000 };
+      const stale = {
+        lastActive: Date.now() - ACTIVE_WINDOW_MS - 1000,
+        nowPlaying: null,
+        location: null,
+      };
       updateDoc(doc(db, "users", uid), stale).catch(() => {});
     };
     window.addEventListener("beforeunload", onUnload);
@@ -186,32 +235,85 @@ export function usePresence(): PresenceState {
     };
   }, [configured, uid, profile, refreshLocation, writeMe]);
 
-  const connectProfile = useCallback(
-    async (input: LocalProfileInput) => {
-      if (!uid) {
-        setError("Kimlik hazir degil. Sayfayi yenileyip tekrar dene.");
-        return;
-      }
+  const register = useCallback(
+    async (input: RegisterInput) => {
       if (!input.displayName.trim()) {
         setError("Kullanici adi bos olamaz.");
         return;
       }
       try {
-        const photoURL = input.photoFile
-          ? await uploadAvatar(uid, input.photoFile)
-          : input.photoURL.trim();
-        const next = makeProfile(uid, input, photoURL);
+        const user = await createAccountWithEmail(input.email.trim(), input.password);
+        const next = makeProfile(user.uid, { displayName: input.displayName, photoURL: "" }, "");
         saveProfile(next);
+        setUid(user.uid);
         setProfile(next);
         profileRef.current = next;
         await refreshLocation();
-        await writeMe();
+        const payload: UserDoc = {
+          uid: user.uid,
+          musicProvider: "sonar",
+          musicUserId: user.uid,
+          displayName: next.displayName,
+          photoURL: "",
+          city: placeRef.current.city,
+          country: placeRef.current.country,
+          location: visibilityRef.current === "off" ? null : locationRef.current,
+          visibility: visibilityRef.current,
+          nowPlaying: null,
+          lastActive: Date.now(),
+          createdAt: Date.now(),
+        };
+        await setDoc(doc(db, "users", user.uid), JSON.parse(JSON.stringify(payload)), { merge: true });
         setError(null);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Profil fotografi yuklenemedi.");
+        setError(e instanceof Error ? e.message : "Kayit basarisiz oldu.");
       }
     },
-    [uid, refreshLocation, writeMe]
+    [refreshLocation]
+  );
+
+  const login = useCallback(
+    async (input: LoginInput) => {
+      try {
+        const user = await signInWithEmail(input.email.trim(), input.password);
+        setUid(user.uid);
+        const snap = await getDoc(doc(db, "users", user.uid));
+        const data = snap.exists() ? (snap.data() as UserDoc) : null;
+        const next = makeProfile(
+          user.uid,
+          {
+            displayName: data?.displayName || user.email?.split("@")[0] || "Sonar Kullanici",
+            photoURL: data?.photoURL || "",
+          },
+          data?.photoURL || ""
+        );
+        saveProfile(next);
+        setProfile(next);
+        profileRef.current = next;
+        if (data?.visibility) {
+          setVisibility(data.visibility);
+          visibilityRef.current = data.visibility;
+        }
+        await refreshLocation();
+        const payload: Partial<UserDoc> = {
+          uid: user.uid,
+          musicProvider: "sonar",
+          musicUserId: user.uid,
+          displayName: next.displayName,
+          photoURL: next.photoURL,
+          city: placeRef.current.city,
+          country: placeRef.current.country,
+          location: visibilityRef.current === "off" ? null : locationRef.current,
+          visibility: visibilityRef.current,
+          lastActive: Date.now(),
+        };
+        await setDoc(doc(db, "users", user.uid), JSON.parse(JSON.stringify(payload)), { merge: true });
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Giris basarisiz oldu.");
+      }
+    },
+    [refreshLocation]
   );
 
   const updateProfile = useCallback(
@@ -246,8 +348,16 @@ export function usePresence(): PresenceState {
   const disconnect = useCallback(async () => {
     localStorage.removeItem(PROFILE_KEY);
     nowPlayingRef.current = null;
-    if (uid) await deleteDoc(doc(db, "users", uid)).catch(() => {});
+    if (uid) {
+      await updateDoc(doc(db, "users", uid), {
+        lastActive: Date.now() - ACTIVE_WINDOW_MS - 1000,
+        nowPlaying: null,
+        location: null,
+      }).catch(() => {});
+    }
+    await signOutCurrentUser().catch(() => {});
     setProfile(null);
+    setUid(null);
   }, [uid]);
 
   const changeVisibility = useCallback(
@@ -277,14 +387,18 @@ export function usePresence(): PresenceState {
   const me = allUsers.find((u) => u.uid === uid) || null;
   const users = useMemo(
     () =>
-      allUsers.filter((u) => {
-        if (u.uid === uid) return false;
-        if (!u.location) return false;
-        if (now - (u.lastActive || 0) > ACTIVE_WINDOW_MS) return false;
-        if (u.visibility === "off") return false;
-        if (u.visibility === "friends") return friends.includes(u.uid);
-        return true;
-      }),
+      allUsers
+        .filter((u) => {
+          if (u.uid === uid) return false;
+          if (u.visibility === "off") return false;
+          if (u.visibility === "friends") return friends.includes(u.uid);
+          return true;
+        })
+        .map((u) => {
+          const active = now - (u.lastActive || 0) <= ACTIVE_WINDOW_MS;
+          return active ? u : { ...u, location: null, nowPlaying: null };
+        })
+        .sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0)),
     [allUsers, friends, now, uid]
   );
 
@@ -300,7 +414,8 @@ export function usePresence(): PresenceState {
     users,
     me,
     friends,
-    connectProfile,
+    login,
+    register,
     updateProfile,
     setNowPlaying,
     disconnect,

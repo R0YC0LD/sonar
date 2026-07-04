@@ -12,7 +12,7 @@ service cloud.firestore {
     }
 
     // Kullanici presence dokumanlari: users/{uid}
-    // uid = Firebase Anonymous Auth uid'si.
+    // uid = Firebase Auth kullanici uid'si.
     match /users/{userId} {
 
       // Giris yapmis herkes diger kullanicilarin "acik" kartlarini okuyabilir.
@@ -25,6 +25,8 @@ service cloud.firestore {
         && request.resource.data.uid == userId
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() < 100
+        && request.resource.data.photoURL is string
+        && request.resource.data.lastActive is number
         && request.resource.data.visibility in ['global', 'friends', 'off'];
 
       allow delete: if isOwner(userId);

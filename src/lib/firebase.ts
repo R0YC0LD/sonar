@@ -1,5 +1,12 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously, onAuthStateChanged, type User } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  type User,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported as analyticsSupported } from "firebase/analytics";
@@ -29,22 +36,37 @@ if (isFirebaseConfigured && firebaseConfig.measurementId) {
     .catch(() => {});
 }
 
-/**
- * Anonim olarak giris yapar ve Firebase uid'sini dondurur.
- * Site profili ayri tutulur; bu uid sadece Firestore guvenlik kurallari
- * (kendi dokumanini yazabilme) icin gereklidir.
- */
-export function ensureAnonymousAuth(): Promise<User> {
+export function waitForAuthState(): Promise<User | null> {
   return new Promise((resolve, reject) => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        unsub();
-        resolve(user);
-      }
-    });
-    signInAnonymously(auth).catch((err) => {
       unsub();
-      reject(err);
+      resolve(user);
+    }, reject);
+  });
+}
+
+export function signInWithEmail(email: string, password: string): Promise<User> {
+  return signInWithEmailAndPassword(auth, email, password).then((cred) => cred.user);
+}
+
+export function createAccountWithEmail(email: string, password: string): Promise<User> {
+  return createUserWithEmailAndPassword(auth, email, password).then((cred) => cred.user);
+}
+
+export function signOutCurrentUser(): Promise<void> {
+  return signOut(auth);
+}
+
+export function listenAuthState(callback: (user: User | null) => void) {
+  return onAuthStateChanged(auth, callback);
+}
+
+export function requireCurrentUser(): Promise<User> {
+  return new Promise((resolve, reject) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      unsub();
+      if (user) resolve(user);
+      else reject(new Error("Oturum acilmadi."));
     });
   });
 }

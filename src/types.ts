@@ -12,6 +12,15 @@ export interface LocalProfileInput {
   photoFile?: File | null;
 }
 
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface RegisterInput extends LoginInput {
+  displayName: string;
+}
+
 export interface PlayableTrack {
   id: string;
   provider: "youtube";
@@ -49,4 +58,5 @@ export interface UserDoc {
   visibility: Visibility;
   nowPlaying: NowPlaying | null;
   lastActive: number; // ms epoch
+  createdAt?: number;
 }

@@ -81,20 +81,21 @@ function MainApp() {
 
   const mapUsers = useMemo(() => {
     const unique = new Map<string, UserDoc>();
-    if (presence.me?.location) unique.set(presence.me.uid, presence.me);
+    if (presence.me?.location && isActiveUser(presence.me)) unique.set(presence.me.uid, presence.me);
     presence.users.forEach((u) => {
-      if (u.location) unique.set(u.uid, u);
+      if (u.location && isActiveUser(u)) unique.set(u.uid, u);
     });
     return Array.from(unique.values());
   }, [presence.me, presence.users]);
 
   const popupUsers = useMemo(() => {
-    if (globeZoom < 1.35) return [];
-    return mapUsers
+    if (globeZoom < 2.05) return [];
+    const projected = mapUsers
       .map((user, index) => projectUserToGlobe(user, globeView, index))
       .filter((item): item is ProjectedUser => Boolean(item))
       .sort((a, b) => Number(Boolean(b.user.nowPlaying)) - Number(Boolean(a.user.nowPlaying)))
       .slice(0, 12);
+    return spreadProjectedUsers(projected);
   }, [globeZoom, globeView, mapUsers]);
 
   if (!presence.ready || presence.loading) {
@@ -113,7 +114,8 @@ function MainApp() {
       <>
         <div className="app-bg" />
         <LoginScreen
-          onConnect={presence.connectProfile}
+          onLogin={presence.login}
+          onRegister={presence.register}
           configured={presence.configured}
           error={presence.error}
         />
@@ -166,10 +168,10 @@ function MainApp() {
         </header>
 
         {/* ---------- Ana govde ---------- */}
-        <main className="relative flex min-h-0 flex-1 gap-4 px-3 pb-[50dvh] md:px-6 lg:pb-4">
+        <main className="relative flex min-h-0 flex-1 gap-4 px-3 pb-[44dvh] md:px-6 lg:pb-4">
           {/* Globe */}
           <div className="relative flex min-w-0 flex-1 items-center justify-center">
-            <div className="w-[min(92vw,58vh,760px)] lg:w-[min(92vw,72vh,760px)]">
+            <div className="w-[min(92vw,52vh,760px)] sm:w-[min(92vw,58vh,760px)] lg:w-[min(92vw,72vh,760px)]">
               <Globe
                 markers={markers}
                 arcs={arcs}
@@ -287,7 +289,7 @@ function MainApp() {
         onDisconnect={presence.disconnect}
       />
 
-      <div className="fixed inset-x-3 bottom-3 z-20 h-[min(46dvh,390px)] lg:hidden">
+      <div className="fixed inset-x-3 bottom-3 z-20 h-[min(40dvh,350px)] lg:hidden">
         <div className="mx-auto h-full max-w-md">
           <MusicPlayer onNowPlaying={presence.setNowPlaying} />
         </div>
@@ -306,8 +308,15 @@ interface ProjectedUser {
   user: UserDoc;
   left: number;
   top: number;
+  cardLeft: number;
+  cardTop: number;
   scale: number;
   isEdge: boolean;
+  anchor: "top" | "right" | "left" | "bottom";
+}
+
+function isActiveUser(user: UserDoc) {
+  return Date.now() - (user.lastActive || 0) <= 5 * 60_000;
 }
 
 function projectUserToGlobe(user: UserDoc, view: GlobeView, index: number): ProjectedUser | null {
@@ -322,21 +331,54 @@ function projectUserToGlobe(user: UserDoc, view: GlobeView, index: number): Proj
   const y = y0 * Math.cos(view.theta) - z0 * Math.sin(view.theta);
   const z = y0 * Math.sin(view.theta) + z0 * Math.cos(view.theta);
 
-  if (z < 0.08) return null;
+  if (z < 0.16) return null;
 
-  const zoomScale = Math.min(view.zoom, 3.5);
-  const overlapOffset = ((index % 3) - 1) * 1.8;
-  const left = 50 + x * 43 * zoomScale + overlapOffset;
-  const top = 50 - y * 43 * zoomScale - overlapOffset;
+  const zoomScale = Math.min(view.zoom, 3.1);
+  const left = 50 + x * 39 * zoomScale;
+  const top = 50 - y * 39 * zoomScale;
   if (left < 5 || left > 95 || top < 6 || top > 94) return null;
+  const anchors: ProjectedUser["anchor"][] = ["top", "right", "left", "bottom"];
+  const anchor = anchors[index % anchors.length];
+  const offset = popupOffset(anchor, index);
 
   return {
     user,
     left,
     top,
-    scale: Math.min(1.28, 0.82 + view.zoom * 0.15 + (user.nowPlaying ? 0.08 : 0)),
+    cardLeft: Math.max(10, Math.min(90, left + offset.x)),
+    cardTop: Math.max(8, Math.min(88, top + offset.y)),
+    scale: Math.min(1.08, 0.78 + view.zoom * 0.08 + (user.nowPlaying ? 0.05 : 0)),
     isEdge: z < 0.22,
+    anchor,
   };
+}
+
+function popupOffset(anchor: ProjectedUser["anchor"], index: number) {
+  const jitter = ((index % 3) - 1) * 2.2;
+  if (anchor === "right") return { x: 11 + jitter, y: -2 };
+  if (anchor === "left") return { x: -11 + jitter, y: -2 };
+  if (anchor === "bottom") return { x: jitter, y: 10 };
+  return { x: jitter, y: -10 };
+}
+
+function spreadProjectedUsers(items: ProjectedUser[]) {
+  const placed: ProjectedUser[] = [];
+  items.forEach((item) => {
+    let next = { ...item };
+    for (let i = 0; i < placed.length; i += 1) {
+      const other = placed[i];
+      if (Math.abs(next.cardLeft - other.cardLeft) < 13 && Math.abs(next.cardTop - other.cardTop) < 9) {
+        const offset = popupOffset(next.anchor, i + placed.length + 1);
+        next = {
+          ...next,
+          cardLeft: Math.max(10, Math.min(90, next.left + offset.x * 1.45)),
+          cardTop: Math.max(8, Math.min(88, next.top + offset.y * 1.35)),
+        };
+      }
+    }
+    placed.push(next);
+  });
+  return placed;
 }
 
 function UserBubble({
@@ -351,13 +393,13 @@ function UserBubble({
     <button
       onClick={onClick}
       aria-label={`${user.displayName} dinleme popup`}
-      className={`glass absolute z-30 flex max-w-[230px] origin-bottom items-center gap-2 rounded-2xl border border-spotify/20 p-2 text-left shadow-2xl shadow-black/35 transition duration-300 hover:border-spotify/45 hover:bg-white/[0.08] ${
+      className={`popup-bubble glass absolute z-30 flex max-w-[230px] origin-center items-center gap-2 rounded-2xl border border-spotify/20 p-2 text-left shadow-2xl shadow-black/35 transition duration-300 hover:border-spotify/45 hover:bg-white/[0.08] ${
         item.isEdge ? "opacity-75" : "opacity-100"
       }`}
       style={{
-        left: `${item.left}%`,
-        top: `${item.top}%`,
-        transform: `translate(-50%, -112%) scale(${item.scale})`,
+        left: `${item.cardLeft}%`,
+        top: `${item.cardTop}%`,
+        transform: `translate(-50%, -50%) scale(${item.scale})`,
       }}
     >
       {user.photoURL ? (
