@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Yardimci fonksiyonlar
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Kullanici presence dokumanlari: users/{uid}
+    // uid = Firebase Anonymous Auth uid'si.
+    match /users/{userId} {
+
+      // Giris yapmis herkes diger kullanicilarin "acik" kartlarini okuyabilir.
+      // Konum gizliligi (global / friends / off) istemci tarafinda da filtrelenir;
+      // "off" secilince istemci konum alanini hic yazmaz.
+      allow read: if isSignedIn();
+
+      // Sadece sahibi kendi dokumanini olusturabilir/guncelleyebilir/silebilir.
+      allow create, update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() < 100
+        && request.resource.data.visibility in ['global', 'friends', 'off'];
+
+      allow delete: if isOwner(userId);
+    }
+
+    // Arkadaslik iliskileri: friendships/{uid}
+    // { friends: [uid, uid, ...] } — sadece sahibi yazabilir, ilgili taraflar okuyabilir.
+    match /friendships/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+    // Diger her seyi kapat.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

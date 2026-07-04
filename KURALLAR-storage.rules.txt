@@ -1,0 +1,37 @@
+========================================================================
+FIREBASE STORAGE GUVENLIK KURALLARI
+========================================================================
+Firebase Console > Storage > Rules (Kurallar) sekmesine asagidaki metnin
+TAMAMINI yapistir ve "Publish" (Yayinla) de.
+(Ayni icerik projedeki "storage.rules" dosyasindadir.)
+
+NOT: Spotify profil fotograflari zaten Spotify'in kendi CDN'inden gelir,
+bu yuzden Storage'a resim yuklemek ZORUNLU DEGILDIR. Bu kurallar sadece
+kullanicilarin kendi ozel avatarlarini yuklemek istemesi ihtimaline karsi.
+Storage'i acmak icin Firebase Console > Storage > "Get Started" demen yeterli.
+========================================================================
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /avatars/{userId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId)
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

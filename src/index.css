@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background: #06060c;
+  color: #e7e7ef;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Yildizli / nebula arka plan */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(29, 185, 84, 0.14), transparent 60%),
+    radial-gradient(ellipse 70% 60% at 85% 20%, rgba(88, 101, 242, 0.12), transparent 55%),
+    radial-gradient(ellipse 70% 70% at 10% 90%, rgba(168, 85, 247, 0.12), transparent 55%),
+    #06060c;
+}
+.app-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 70% 60%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 40% 80%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 90% 20%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 55% 15%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 15% 65%, rgba(255, 255, 255, 0.4), transparent);
+  background-repeat: repeat;
+  opacity: 0.7;
+}
+
+/* cam / glass panel */
+.glass {
+  background: rgba(16, 16, 26, 0.55);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

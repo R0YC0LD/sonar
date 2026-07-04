@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Kullanici avatar/gorsel yuklemeleri: avatars/{uid}/...
+    // Not: Spotify profil fotograflari zaten Spotify CDN'inden gelir, bu klasor
+    // opsiyonel (ozel avatar yuklemek isteyenler icin).
+    match /avatars/{userId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId)
+        && request.resource.size < 5 * 1024 * 1024            // max 5 MB
+        && request.resource.contentType.matches('image/.*');  // sadece resim
+    }
+
+    // Diger her seyi kapat.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
