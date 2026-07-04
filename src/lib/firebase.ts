@@ -31,7 +31,7 @@ if (isFirebaseConfigured && firebaseConfig.measurementId) {
 
 /**
  * Anonim olarak giris yapar ve Firebase uid'sini dondurur.
- * Spotify kimligi ayri tutulur; bu uid sadece Firestore guvenlik kurallari
+ * Last.fm kullanici adi ayri tutulur; bu uid sadece Firestore guvenlik kurallari
  * (kendi dokumanini yazabilme) icin gereklidir.
  */
 export function ensureAnonymousAuth(): Promise<User> {

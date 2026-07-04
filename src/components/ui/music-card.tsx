@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export interface Song {
   title: string;
   artists: string;
+  album?: string;
   duration: number; // saniye
   albumArt: string;
   progress?: number; // saniye (opsiyonel baslangic)
@@ -18,14 +19,14 @@ function fmt(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-interface SpotifyCardProps {
+interface MusicCardProps {
   songs: Song[];
   /** true ise sarki listesini otomatik degistirir (demo). */
   autoRotate?: boolean;
   className?: string;
 }
 
-export function SpotifyCard({ songs, autoRotate = false, className = "" }: SpotifyCardProps) {
+export function MusicCard({ songs, autoRotate = false, className = "" }: MusicCardProps) {
   const [index, setIndex] = useState(0);
   const song = songs[index % songs.length] ?? songs[0];
   const [progress, setProgress] = useState(song?.progress ?? 0);
@@ -54,6 +55,7 @@ export function SpotifyCard({ songs, autoRotate = false, className = "" }: Spoti
 
   if (!song) return null;
   const pct = song.duration ? Math.min(100, (progress / song.duration) * 100) : 0;
+  const hasTimeline = song.duration > 0;
 
   return (
     <div
@@ -99,28 +101,33 @@ export function SpotifyCard({ songs, autoRotate = false, className = "" }: Spoti
           </a>
           <div className="truncate text-[13px] text-white/60">{song.artists}</div>
         </div>
-        <svg viewBox="0 0 24 24" width="22" height="22" className="shrink-0 fill-spotify">
-          <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.6 14.4a.62.62 0 01-.86.2c-2.35-1.44-5.3-1.76-8.79-.96a.62.62 0 11-.28-1.22c3.8-.87 7.08-.5 9.72 1.12.3.18.4.57.21.86zm1.23-2.74a.78.78 0 01-1.07.26c-2.69-1.65-6.79-2.13-9.97-1.17a.78.78 0 11-.45-1.5c3.63-1.1 8.15-.56 11.23 1.34.37.22.49.7.26 1.07zm.1-2.85C14.84 8.97 9.4 8.8 6.3 9.74a.94.94 0 11-.54-1.8c3.56-1.08 9.56-.87 13.33 1.36a.94.94 0 01-.96 1.6z" />
-        </svg>
+        <span className="shrink-0 rounded-full bg-spotify/15 px-2 py-1 text-[11px] font-bold text-spotify">
+          fm
+        </span>
       </div>
 
-      {/* ilerleme cubugu */}
-      <div className="mt-3">
-        <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
-          <div
-            className="h-full rounded-full bg-white"
-            style={{ width: `${pct}%`, transition: "width 1s linear" }}
-          />
+      {hasTimeline ? (
+        <div className="mt-3">
+          <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
+            <div
+              className="h-full rounded-full bg-white"
+              style={{ width: `${pct}%`, transition: "width 1s linear" }}
+            />
+          </div>
+          <div className="mt-1 flex justify-between text-[11px] tabular-nums text-white/50">
+            <span>{fmt(progress)}</span>
+            <span>{fmt(song.duration)}</span>
+          </div>
         </div>
-        <div className="mt-1 flex justify-between text-[11px] tabular-nums text-white/50">
-          <span>{fmt(progress)}</span>
-          <span>{fmt(song.duration)}</span>
+      ) : (
+        <div className="mt-3 rounded-full bg-white/10 px-3 py-2 text-center text-[12px] font-medium text-white/55">
+          {(song.isPlaying ?? false) ? "Last.fm'e gore su an dinleniyor" : "Last.fm'de son dinlenen"}
         </div>
-      </div>
+      )}
 
       <style>{`@keyframes eq { from { height: 4px } to { height: 14px } }`}</style>
     </div>
   );
 }
 
-export default SpotifyCard;
+export default MusicCard;

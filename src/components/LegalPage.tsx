@@ -54,16 +54,16 @@ export function PrivacyPolicy() {
       </p>
 
       <Section title="1. Topladığımız Veriler">
-        <p>Spotify hesabınızı bağladığınızda, sizin izninizle şu verilere erişiriz:</p>
+        <p>Last.fm kullanıcı adınızı bağladığınızda şu verilere erişiriz:</p>
         <ul className="ml-5 list-disc space-y-1">
-          <li>Spotify görünen adınız, profil fotoğrafınız ve Spotify kullanıcı kimliğiniz</li>
-          <li>Şu anda çaldığınız şarkı bilgisi (başlık, sanatçı, albüm kapağı)</li>
+          <li>Last.fm kullanıcı adınız, görünen adınız ve herkese açık profil fotoğrafınız</li>
+          <li>Last.fm üzerinden görünen şu an çalan veya son dinlenen şarkı bilgisi</li>
           <li>Yaklaşık konumunuz (tarayıcı konum izniyle GPS veya IP adresi tabanlı şehir/ülke)</li>
           <li>Seçtiğiniz gizlilik tercihi (global / sadece arkadaşlar / kapalı)</li>
         </ul>
         <p>
-          Spotify şifrenizi <b>görmeyiz</b> ve saklamayız. Giriş, Spotify'ın güvenli OAuth (PKCE)
-          akışıyla yapılır.
+          Last.fm şifrenizi <b>istemeyiz, görmeyiz ve saklamayız</b>. Platform yalnızca girilen
+          Last.fm kullanıcı adının herkese açık profil ve dinleme verilerini okur.
         </p>
       </Section>
 
@@ -98,7 +98,7 @@ export function PrivacyPolicy() {
       <Section title="5. Üçüncü Taraf Hizmetler">
         <p>Platform aşağıdaki hizmetleri kullanır ve onların kendi gizlilik politikaları geçerlidir:</p>
         <ul className="ml-5 list-disc space-y-1">
-          <li><b>Spotify</b> — giriş ve dinleme verisi (developer.spotify.com)</li>
+          <li><b>Last.fm</b> — profil ve dinleme verisi (last.fm/api)</li>
           <li><b>Google Firebase</b> — kimlik doğrulama, veri saklama, barındırma</li>
           <li><b>Konum servisleri</b> — yaklaşık şehir/ülke belirleme (ipapi.co, bigdatacloud.net)</li>
         </ul>
@@ -114,8 +114,8 @@ export function PrivacyPolicy() {
 
       <Section title="7. Çocukların Gizliliği">
         <p>
-          Platform 13 yaşından küçük kullanıcılara yönelik değildir. Spotify'ın yaş şartları
-          geçerlidir.
+          Platform 13 yaşından küçük kullanıcılara yönelik değildir. Last.fm ve bağlı müzik
+          hizmetlerinin kendi yaş şartları ayrıca geçerlidir.
         </p>
       </Section>
 
@@ -127,8 +127,8 @@ export function PrivacyPolicy() {
       </Section>
 
       <p className="mt-6 text-xs text-white/40">
-        {SITE_NAME}, Spotify AB ile bağlantılı, ona ait veya onun tarafından desteklenen bir hizmet
-        değildir. "Spotify" markası Spotify AB'ye aittir.
+        {SITE_NAME}, Last.fm veya Spotify ile bağlantılı, onlara ait veya onlar tarafından
+        desteklenen bir hizmet değildir.
       </p>
     </Shell>
   );
@@ -144,17 +144,17 @@ export function TermsOfService() {
 
       <Section title="1. Hizmetin Tanımı">
         <p>
-          {SITE_NAME}, kullanıcıların Spotify hesaplarını bağlayarak, seçtikleri gizlilik ayarına
-          göre o anda dinledikleri müziği ve yaklaşık konumlarını bir dünya haritası üzerinde
-          diğer kullanıcılarla paylaşabildiği bir sosyal keşif platformudur.
+          {SITE_NAME}, kullanıcıların Last.fm kullanıcı adlarını bağlayarak, seçtikleri gizlilik
+          ayarına göre o anda dinledikleri veya son dinledikleri müziği ve yaklaşık konumlarını bir
+          dünya haritası üzerinde diğer kullanıcılarla paylaşabildiği bir sosyal keşif platformudur.
         </p>
       </Section>
 
       <Section title="2. Hesap ve Uygunluk">
         <ul className="ml-5 list-disc space-y-1">
-          <li>Geçerli ve size ait bir Spotify hesabınız olmalıdır.</li>
-          <li>En az 13 yaşında (veya ülkenizin Spotify için belirlediği yaşta) olmalısınız.</li>
-          <li>Başkasının hesabıyla veya izinsiz giriş yapamazsınız.</li>
+          <li>Geçerli ve size ait bir Last.fm kullanıcı adı kullanmalısınız.</li>
+          <li>En az 13 yaşında olmalısınız.</li>
+          <li>Başkasına ait Last.fm kullanıcı adını izinsiz kullanamazsınız.</li>
         </ul>
       </Section>
 
@@ -170,9 +170,8 @@ export function TermsOfService() {
 
       <Section title="4. İçerik ve Fikri Mülkiyet">
         <p>
-          Şarkı, albüm kapağı ve sanatçı bilgileri Spotify'a ve ilgili hak sahiplerine aittir;
-          Spotify Web API aracılığıyla yalnızca görüntüleme amacıyla gösterilir. Platform bu
-          içeriğin sahibi değildir.
+          Şarkı, albüm kapağı ve sanatçı bilgileri Last.fm ve ilgili hak sahiplerinden gelen açık
+          verilerle yalnızca görüntüleme amacıyla gösterilir. Platform bu içeriğin sahibi değildir.
         </p>
       </Section>
 
@@ -199,8 +198,8 @@ export function TermsOfService() {
       </Section>
 
       <p className="mt-6 text-xs text-white/40">
-        {SITE_NAME}, Spotify AB ile bağlantılı değildir. Spotify kullanımınız ayrıca Spotify'ın
-        kendi Kullanım Şartları'na tabidir.
+        {SITE_NAME}, Last.fm veya Spotify ile bağlantılı değildir. Last.fm ve Spotify kullanımınız
+        ayrıca ilgili hizmetlerin kendi kullanım şartlarına tabidir.
       </p>
     </Shell>
   );

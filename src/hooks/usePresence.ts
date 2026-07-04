@@ -10,16 +10,16 @@ import {
 } from "firebase/firestore";
 import { db, ensureAnonymousAuth, isFirebaseConfigured } from "@/lib/firebase";
 import {
-  beginSpotifyLogin,
-  clearSpotifySession,
+  clearLastfmSession,
+  connectLastfm as connectLastfmAccount,
+  fetchLastfmProfile,
   fetchNowPlaying,
-  fetchSpotifyProfile,
-  hasSpotifySession,
-  isSpotifyConfigured,
-  SpotifyApiError,
-} from "@/lib/spotify";
+  hasLastfmSession,
+  isLastfmConfigured,
+  LastfmApiError,
+} from "@/lib/lastfm";
 import { resolveLocation } from "@/lib/geo";
-import type { NowPlaying, SpotifyProfile, UserDoc, Visibility } from "@/types";
+import type { LastfmProfile, NowPlaying, UserDoc, Visibility } from "@/types";
 
 const POLL_MS = 20_000; // her 20 sn'de bir "su an caliyor" guncelle
 const ACTIVE_WINDOW_MS = 5 * 60_000; // son 5 dk aktif olanlar haritada
@@ -31,13 +31,13 @@ export interface PresenceState {
   error: string | null;
   configured: boolean;
   uid: string | null;
-  profile: SpotifyProfile | null;
+  profile: LastfmProfile | null;
   connected: boolean;
   visibility: Visibility;
   users: UserDoc[]; // haritada gosterilecekler (kendisi haric, filtrelenmis)
   me: UserDoc | null;
   friends: string[];
-  connectSpotify: () => void;
+  connectLastfm: (username: string) => Promise<void>;
   disconnect: () => Promise<void>;
   changeVisibility: (v: Visibility) => Promise<void>;
   toggleFriend: (uid: string) => Promise<void>;
@@ -49,7 +49,7 @@ export function usePresence(): PresenceState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uid, setUid] = useState<string | null>(null);
-  const [profile, setProfile] = useState<SpotifyProfile | null>(null);
+  const [profile, setProfile] = useState<LastfmProfile | null>(null);
   const [connected, setConnected] = useState(false);
   const [visibility, setVisibility] = useState<Visibility>(
     (localStorage.getItem(VIS_KEY) as Visibility) || "global"
@@ -57,7 +57,7 @@ export function usePresence(): PresenceState {
   const [allUsers, setAllUsers] = useState<UserDoc[]>([]);
   const [friends, setFriends] = useState<string[]>([]);
 
-  const configured = isFirebaseConfigured && isSpotifyConfigured;
+  const configured = isFirebaseConfigured && isLastfmConfigured;
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
   const placeRef = useRef<{ city?: string; country?: string }>({});
   const nowPlayingRef = useRef<NowPlaying | null>(null);
@@ -76,7 +76,7 @@ export function usePresence(): PresenceState {
       .then((user) => {
         if (!mounted) return;
         setUid(user.uid);
-        setConnected(hasSpotifySession());
+        setConnected(hasLastfmSession());
         setReady(true);
         setLoading(false);
       })
@@ -111,30 +111,30 @@ export function usePresence(): PresenceState {
     return () => unsub();
   }, [configured, uid]);
 
-  /* ---------- 4) Spotify profilini yukle ---------- */
+  /* ---------- 4) Last.fm profilini yukle ---------- */
   useEffect(() => {
     if (!connected) {
       setProfile(null);
       return;
     }
-    fetchSpotifyProfile()
+    fetchLastfmProfile()
       .then((p) => {
         if (p) {
           setError(null);
           setProfile(p);
         } else {
-          clearSpotifySession();
+          clearLastfmSession();
           setConnected(false);
         }
       })
       .catch((e) => {
-        clearSpotifySession();
+        clearLastfmSession();
         setConnected(false);
         setProfile(null);
-        if (e instanceof SpotifyApiError) {
+        if (e instanceof LastfmApiError) {
           setError(e.message);
         } else {
-          setError("Spotify baglantisi tamamlanamadi. Lutfen tekrar dene.");
+          setError("Last.fm baglantisi tamamlanamadi. Lutfen kullanici adini kontrol et.");
         }
       });
   }, [connected]);
@@ -158,7 +158,9 @@ export function usePresence(): PresenceState {
     const vis = visibilityRef.current;
     const payload: UserDoc = {
       uid,
-      spotifyId: profile.id,
+      musicProvider: "lastfm",
+      musicUserId: profile.id,
+      lastfmUsername: profile.username,
       displayName: profile.displayName,
       photoURL: profile.photoURL,
       city: placeRef.current.city,
@@ -180,9 +182,18 @@ export function usePresence(): PresenceState {
 
     const tick = async () => {
       if (stop) return;
-      nowPlayingRef.current = await fetchNowPlaying();
-      if (!locationRef.current) await refreshLocation();
-      await writeMe();
+      try {
+        nowPlayingRef.current = await fetchNowPlaying(profile.username);
+        if (!locationRef.current) await refreshLocation();
+        await writeMe();
+        setError(null);
+      } catch (e) {
+        if (e instanceof LastfmApiError) {
+          setError(e.message);
+        } else {
+          setError("Dinleme verisi guncellenemedi. Birazdan tekrar denenecek.");
+        }
+      }
     };
 
     tick();
@@ -206,13 +217,24 @@ export function usePresence(): PresenceState {
   }, [configured, uid, profile, writeMe, refreshLocation]);
 
   /* ---------- Aksiyonlar ---------- */
-  const connectSpotify = useCallback(() => {
+  const connectLastfm = useCallback(async (username: string) => {
     setError(null);
-    beginSpotifyLogin();
+    try {
+      const p = await connectLastfmAccount(username);
+      setProfile(p);
+      setConnected(true);
+    } catch (e) {
+      if (e instanceof LastfmApiError) {
+        setError(e.message);
+      } else {
+        setError("Last.fm kullanicisi baglanamadi. Lutfen tekrar dene.");
+      }
+      setConnected(false);
+    }
   }, []);
 
   const disconnect = useCallback(async () => {
-    clearSpotifySession();
+    clearLastfmSession();
     if (uid) await deleteDoc(doc(db, "users", uid)).catch(() => {});
     setConnected(false);
     setProfile(null);
@@ -268,7 +290,7 @@ export function usePresence(): PresenceState {
     users,
     me,
     friends,
-    connectSpotify,
+    connectLastfm,
     disconnect,
     changeVisibility,
     toggleFriend,

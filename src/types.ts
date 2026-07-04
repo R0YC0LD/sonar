@@ -3,6 +3,7 @@ export type Visibility = "global" | "friends" | "off";
 export interface NowPlaying {
   title: string;
   artists: string;
+  album?: string;
   albumArt: string;
   duration: number; // saniye
   progress: number; // saniye
@@ -13,7 +14,9 @@ export interface NowPlaying {
 
 export interface UserDoc {
   uid: string;
-  spotifyId: string;
+  musicProvider?: "lastfm";
+  musicUserId: string;
+  lastfmUsername?: string;
   displayName: string;
   photoURL: string;
   country?: string;
@@ -24,8 +27,10 @@ export interface UserDoc {
   lastActive: number; // ms epoch
 }
 
-export interface SpotifyProfile {
+export interface LastfmProfile {
   id: string;
+  username: string;
   displayName: string;
   photoURL: string;
+  profileURL: string;
 }

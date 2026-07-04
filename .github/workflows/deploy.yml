@@ -32,9 +32,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_LASTFM_API_KEY: ${{ secrets.VITE_LASTFM_API_KEY }}
 
       # GitHub Pages tekil sayfa uygulamasi (SPA) icin: bilinmeyen yollarda
-      # (/sonar/callback, /sonar/privacy ...) 404 yerine index.html gosterilsin.
+      # (/sonar/privacy, /sonar/terms ...) 404 yerine index.html gosterilsin.
       - name: SPA 404 fallback
         run: cp dist/index.html dist/404.html
 

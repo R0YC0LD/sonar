@@ -1,89 +1,77 @@
-# 🌐 Sonar — Dünyayı Dinle
+# Sonar — Dunyayi Dinle
 
-Kullanıcıların **Spotify hesaplarını bağlayıp**, dünya modeli (3D globe) üzerinde
-**birbirlerinin şu an ne dinlediklerini ve konumlarını canlı olarak** gördüğü platform.
+Kullanicilarin **Last.fm kullanici adlarini girip**, 3D dunya uzerinde
+birbirlerinin su an ne dinlediklerini veya son dinledikleri sarkiyi ve konumlarini
+canli olarak gordugu platform.
 
-- 🎧 Spotify ile giriş (PKCE — Client Secret gerekmez)
-- 🌍 3D interaktif dünya (mouse tekerleği + iki parmak ile zoom, sürükleyerek döndürme)
-- 📍 Konum gizliliği: **Global / Sadece Arkadaşlar / Kapalı**
-- 👤 Spotify profil fotoğrafı + kullanıcı adı görünür
-- ⚡ Firebase Firestore ile gerçek zamanlı senkronizasyon
+- Last.fm kullanici adi ile baglanma, OAuth/Extended quota yok
+- Spotify dinlemeleri icin kullanicinin Last.fm hesabinda Spotify scrobbling acik olmali
+- 3D interaktif dunya: surukleyerek dondurme, mouse tekerlegi/iki parmak ile zoom
+- Konum gizliligi: **Global / Sadece Arkadaslar / Kapali**
+- Firebase Firestore ile gercek zamanli senkronizasyon
 
 ---
 
 ## 1) Gereksinimler
-- [Node.js 18+](https://nodejs.org)
-- Bir Google/Firebase hesabı
-- Bir Spotify hesabı (ücretsiz olabilir)
+
+- Node.js 18+
+- Bir Google/Firebase hesabi
+- Bir Last.fm API key
 
 ## 2) Kurulum
+
 ```bash
 npm install
 ```
 
 ## 3) Firebase Kurulumu
 
-### a) Proje oluştur
-1. https://console.firebase.google.com → **Add project** (Proje ekle)
-2. Proje adını gir, oluştur.
+### a) Proje olustur
 
-### b) Web uygulaması ekle ve config'i al
-1. Proje ana sayfasında **</> (Web)** simgesine tıkla.
+1. https://console.firebase.google.com adresine gir.
+2. **Add project** ile yeni proje olustur.
+
+### b) Web uygulamasi ekle ve config'i al
+
+1. Proje ana sayfasinda **</> (Web)** simgesine tikla.
 2. Uygulamaya isim ver, **Register app** de.
-3. Sana verilen `firebaseConfig` değerlerini `.env` dosyasına gireceksin (aşağıda).
+3. Verilen `firebaseConfig` degerlerini `.env` dosyasina gir.
 
-### c) Authentication (KİMLİK DOĞRULAMA) — **ne seçmeliyim?**
-> **Cevap: "Anonymous" (Anonim) sağlayıcısını aç.**
+### c) Authentication
 
-Neden? Spotify, Firebase'in yerleşik giriş sağlayıcılarından **değildir**. Kullanıcı
-kimliği için Spotify'ı ayrı olarak (PKCE ile) kullanıyoruz; Firebase Anonymous Auth ise
-sadece her kullanıcıya güvenlik kurallarının çalışması için bir `uid` verir.
+> **Anonymous (Anonim)** saglayicisini ac.
+
+Last.fm girisi Firebase'in kendi kimlik saglayicisi degildir. Firebase Anonymous Auth,
+her kullaniciya sadece Firestore guvenlik kurallarinin calismasi icin bir `uid` verir.
 
 1. Firebase Console → **Authentication** → **Get started**
-2. **Sign-in method** sekmesi → **Anonymous** → **Enable** → Kaydet.
-
-*(İstersen ileride Google ile giriş de ekleyebilirsin ama zorunlu değil.)*
+2. **Sign-in method** → **Anonymous** → **Enable**
 
 ### d) Firestore Database
-1. **Firestore Database** → **Create database** → **Production mode** seç → bölge seç.
-2. Oluştuktan sonra **Rules** sekmesine gel ve
-   [`KURALLAR-firestore.rules.txt`](KURALLAR-firestore.rules.txt) içindeki metni yapıştır → **Publish**.
 
-### e) Storage (opsiyonel ama kuralları yükle)
-1. **Storage** → **Get started** → varsayılanlarla ilerle.
-2. **Rules** sekmesine gel ve
-   [`KURALLAR-storage.rules.txt`](KURALLAR-storage.rules.txt) içindeki metni yapıştır → **Publish**.
+1. **Firestore Database** → **Create database** → **Production mode** sec.
+2. **Rules** sekmesinde `KURALLAR-firestore.rules.txt` icindeki metni yapistir ve yayinla.
 
-> Not: Spotify profil fotoğrafları Spotify CDN'inden geldiği için Storage **zorunlu değil**.
-> Sadece kullanıcı kendi özel avatarını yüklemek isterse gerekir.
+### e) Storage
 
-## 4) Spotify Kurulumu
-1. https://developer.spotify.com/dashboard → **Create app**
-2. **Redirect URIs** kısmına şunları ekle (ikisini de):
-   - `http://127.0.0.1:5173/callback`  (yerel geliştirme)
-   - `https://SENIN-SITEN.web.app/callback`  (canlı site — Firebase Hosting adresin)
-3. **APIs used**: "Web API" seçili olsun.
-4. **Client ID**'yi kopyala (Client Secret'a GEREK YOK).
+Storage zorunlu degil; Spotify/Last.fm gorselleri dis CDN'lerden gelir. Yine de Firebase
+Storage kullanacaksan `KURALLAR-storage.rules.txt` kurallarini yayinla.
 
-### Başkaları Spotify ile bağlanamıyorsa
-Spotify yeni uygulamaları varsayılan olarak **Development mode** ile açar. Bu modda
-uygulamayı yalnızca uygulama sahibi ve Dashboard'da izin verilen test kullanıcıları
-kullanabilir. Başka biri bağlanınca Spotify token verse bile Web API istekleri 403
-dönebilir; uygulama bu yüzden tekrar giriş ekranına döner.
+## 4) Last.fm Kurulumu
 
-Test kullanıcılarını eklemek için:
-1. Spotify Developer Dashboard'a gir.
-2. Uygulamanı aç → **Settings**.
-3. **Users Management** sekmesine gir.
-4. **Add new user** ile kullanıcının Spotify hesabındaki e-posta adresini ekle.
+1. https://www.last.fm/api/account/create adresinden bir API account olustur.
+2. Sana verilen **API Key** degerini `.env` dosyasina koy.
+3. **Shared secret** degerini bu frontend projeye koyma; bu uygulamada gerekli degil.
 
-Daha geniş kitleye açmak için Spotify'ın **Extended quota mode** onayı gerekir.
+Kullanicilar Spotify'da dinlediklerinin gorunmesini istiyorsa Last.fm hesaplarinda
+Spotify scrobbling'i acmalidir. Last.fm API dokumanina gore `user.getRecentTracks`
+ve `user.getInfo` authentication istemez; API key ve kullanici adi yeterlidir.
 
-## 5) Ortam Değişkenleri (`.env`)
-`.env.example` dosyasını `.env` olarak kopyala ve doldur:
+## 5) Ortam Degiskenleri
+
+`.env.example` dosyasini `.env` olarak kopyala ve doldur:
 
 ```bash
-# PowerShell:
 Copy-Item .env.example .env
 ```
 
@@ -95,50 +83,51 @@ VITE_FIREBASE_STORAGE_BUCKET=...
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
 
-VITE_SPOTIFY_CLIENT_ID=...
-VITE_SPOTIFY_REDIRECT_URI=http://127.0.0.1:5173/callback
+VITE_LASTFM_API_KEY=...
 ```
 
-## 6) Geliştirme
+Canli GitHub Pages yayininda repo ayarlarina `VITE_LASTFM_API_KEY` adli GitHub Secret
+ekleyebilirsin. Alternatif olarak `.env.production` icindeki ayni degere API key yazilabilir.
+
+## 6) Gelistirme
+
 ```bash
 npm run dev
 ```
-Tarayıcıda **http://127.0.0.1:5173** aç (Spotify redirect için `localhost` yerine
-`127.0.0.1` kullan — Spotify artık `http://localhost`'a izin vermiyor).
 
-## 7) Canlıya Alma (Firebase Hosting)
-```bash
-npm install -g firebase-tools   # ilk sefer
-firebase login
-```
-`.firebaserc` dosyasındaki `SENIN-FIREBASE-PROJE-ID` kısmını gerçek proje ID'nle değiştir.
-Sonra:
+Tarayicida `http://127.0.0.1:5173` ac.
+
+## 7) Canliya Alma
+
+Bu repo GitHub Pages icin hazirlanmistir. `main` branch'ine push yapildiginda
+`.github/workflows/deploy.yml` otomatik build alip yayinlar.
+
+Elle build almak icin:
+
 ```bash
 npm run build
-firebase deploy
 ```
-Bu komut siteyi + Firestore kurallarını + Storage kurallarını birlikte yükler.
-
-> ⚠️ Canlıya aldıktan sonra Spotify Dashboard'daki Redirect URI'yi güncellemeyi
-> (`https://SENIN-SITEN.web.app/callback`) ve `.env` içindeki `VITE_SPOTIFY_REDIRECT_URI`'yi
-> canlı adresle değiştirmeyi unutma, sonra tekrar `npm run build && firebase deploy`.
 
 ---
 
-## Nasıl Çalışıyor? (kısa mimari)
-| Katman | Teknoloji | Görev |
-|--------|-----------|-------|
-| Arayüz | React + Vite + Tailwind | 3D globe, kartlar, paneller |
-| Globe | `cobe` | WebGL dünya + marker/arc |
-| Giriş | Spotify OAuth **PKCE** | Client Secret'sız güvenli giriş |
-| Kimlik | Firebase **Anonymous Auth** | Güvenlik kuralları için `uid` |
-| Gerçek zamanlı | Firestore `onSnapshot` | Herkesin "şu an çalan"ını canlı yayınlar |
-| Konum | Tarayıcı Geolocation + IP fallback | Enlem/boylam + şehir/ülke |
+## Nasil Calisiyor?
 
-Her kullanıcının kaydı `users/{uid}` altında tutulur; 20 saniyede bir "şu an çalan"
-şarkı güncellenir. 5 dakikadan uzun süredir aktif olmayanlar haritadan düşer.
+| Katman | Teknoloji | Gorev |
+|--------|-----------|-------|
+| Arayuz | React + Vite + Tailwind | 3D globe, kartlar, paneller |
+| Globe | `cobe` | WebGL dunya + marker |
+| Dinleme verisi | Last.fm API | Profil ve su an/son dinlenen sarki |
+| Kimlik | Firebase Anonymous Auth | Guvenlik kurallari icin `uid` |
+| Gercek zamanli | Firestore `onSnapshot` | Aktif kullanicilari canli yayinlar |
+| Konum | Tarayici Geolocation + IP fallback | Enlem/boylam + sehir/ulke |
+
+Her kullanicinin kaydi `users/{uid}` altinda tutulur. Uygulama 20 saniyede bir
+Last.fm'den son parcayi alir ve Firestore'u gunceller. 5 dakikadan uzun suredir aktif
+olmayanlar haritadan duser.
 
 ## Gizlilik
-- **Kapalı** seçilirse konum Firestore'a **hiç yazılmaz**.
-- **Sadece Arkadaşlar** seçilirse yalnızca seni arkadaş ekleyenler haritada görebilir.
-- Kurallar (`firestore.rules`) kullanıcıların **yalnızca kendi** kayıtlarını yazmasına izin verir.
+
+- **Kapali** secilirse konum Firestore'a hic yazilmaz.
+- **Sadece Arkadaslar** secilirse yalnizca arkadas olarak eklenenler haritada gorebilir.
+- Last.fm sifresi veya token saklanmaz; sadece kullanici adi localStorage'da tutulur.
+- Kurallar kullanicilarin yalnizca kendi Firestore kayitlarini yazmasina izin verir.

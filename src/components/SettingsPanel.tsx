@@ -1,11 +1,11 @@
 "use client";
 
-import type { SpotifyProfile, Visibility } from "@/types";
+import type { LastfmProfile, Visibility } from "@/types";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  profile: SpotifyProfile | null;
+  profile: LastfmProfile | null;
   visibility: Visibility;
   onChangeVisibility: (v: Visibility) => void;
   onRefreshLocation: () => void;
@@ -76,7 +76,7 @@ export function SettingsPanel({
             )}
             <div className="min-w-0">
               <div className="truncate font-semibold">{profile.displayName}</div>
-              <div className="text-xs text-spotify">Spotify baglantili</div>
+              <div className="text-xs text-spotify">Last.fm baglantili</div>
             </div>
           </div>
         )}

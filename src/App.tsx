@@ -1,68 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Globe } from "@/components/Globe";
-import { SpotifyCard } from "@/components/ui/spotify-card";
+import { MusicCard } from "@/components/ui/music-card";
 import { LoginScreen } from "@/components/LoginScreen";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { UserList } from "@/components/UserList";
 import { PrivacyPolicy, TermsOfService } from "@/components/LegalPage";
 import { usePresence } from "@/hooks/usePresence";
-import { completeSpotifyLogin } from "@/lib/spotify";
-
-/* --------- Spotify /callback ekrani --------- */
-function CallbackScreen() {
-  const home = import.meta.env.BASE_URL;
-  const [status, setStatus] = useState<"loading" | "error">("loading");
-  const ran = useRef(false);
-
-  useEffect(() => {
-    if (ran.current) return; // StrictMode cift calismayi engelle (kod tek kullanimlik)
-    ran.current = true;
-    // Spotify hata dondurduyse (kullanici reddetti vb.) dogrudan hata goster.
-    const err = new URL(window.location.href).searchParams.get("error");
-    if (err) {
-      setStatus("error");
-      return;
-    }
-    completeSpotifyLogin().then((ok) => {
-      if (ok) {
-        window.location.replace(home); // basarili -> ana sayfa
-      } else {
-        setStatus("error"); // basarisiz -> otomatik atma yok, tekrar dene sun
-      }
-    });
-  }, [home]);
-
-  if (status === "error") {
-    return (
-      <div className="relative z-10 flex min-h-full items-center justify-center p-6">
-        <div className="glass max-w-sm rounded-2xl p-6 text-center">
-          <div className="mb-2 text-3xl">🎧</div>
-          <h2 className="mb-1 text-lg font-bold">Giris tamamlanamadi</h2>
-          <p className="mb-4 text-sm text-white/60">
-            Baglanti yarida kesildi. Lutfen tekrar dene.
-          </p>
-          <a
-            href={home}
-            className="inline-block rounded-full bg-spotify px-6 py-3 text-sm font-bold text-black"
-          >
-            Tekrar dene
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative z-10 flex min-h-full items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-spotify" />
-        <p className="text-sm text-white/70">Spotify ile baglaniliyor...</p>
-      </div>
-    </div>
-  );
-}
 
 /* --------- Basit yol yonlendirici (alt-yola duyarli: kok veya /sonar/) --------- */
 export default function App() {
@@ -88,9 +33,6 @@ export default function App() {
 }
 
 function MainApp() {
-  const isCallback =
-    typeof window !== "undefined" && window.location.pathname.endsWith("/callback");
-
   const presence = usePresence();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
@@ -132,15 +74,6 @@ function MainApp() {
     ];
   }, [presence.me, selectedUser]);
 
-  if (isCallback) {
-    return (
-      <>
-        <div className="app-bg" />
-        <CallbackScreen />
-      </>
-    );
-  }
-
   if (!presence.ready || presence.loading) {
     return (
       <>
@@ -157,7 +90,7 @@ function MainApp() {
       <>
         <div className="app-bg" />
         <LoginScreen
-          onConnect={presence.connectSpotify}
+          onConnect={presence.connectLastfm}
           configured={presence.configured}
           error={presence.error}
         />
@@ -249,11 +182,12 @@ function MainApp() {
                   </button>
                 </div>
                 {selectedUser.nowPlaying ? (
-                  <SpotifyCard
+                  <MusicCard
                     songs={[
                       {
                         title: selectedUser.nowPlaying.title,
                         artists: selectedUser.nowPlaying.artists,
+                        album: selectedUser.nowPlaying.album,
                         albumArt: selectedUser.nowPlaying.albumArt,
                         duration: selectedUser.nowPlaying.duration,
                         progress: selectedUser.nowPlaying.progress,
