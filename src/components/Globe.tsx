@@ -18,18 +18,15 @@ interface Arc {
 
 interface GlobeProps {
   markers?: Marker[];
+  /** Not: cobe 0.6.x kavis (arc) desteklemez; bu prop yalnizca API uyumu icin durur. */
   arcs?: Arc[];
   className?: string;
   markerColor?: [number, number, number];
   baseColor?: [number, number, number];
-  arcColor?: [number, number, number];
   glowColor?: [number, number, number];
   dark?: number;
   mapBrightness?: number;
   markerSize?: number;
-  markerElevation?: number;
-  arcWidth?: number;
-  arcHeight?: number;
   speed?: number;
   theta?: number;
   diffuse?: number;
@@ -42,18 +39,13 @@ interface GlobeProps {
 
 export function Globe({
   markers = [],
-  arcs = [],
   className = "",
   markerColor = [0.13, 0.86, 0.4],
   baseColor = [0.28, 0.32, 0.45],
-  arcColor = [0.13, 0.86, 0.4],
   glowColor = [0.13, 0.45, 0.35],
   dark = 1,
   mapBrightness = 11,
-  markerSize = 0.04,
-  markerElevation = 0.01,
-  arcWidth = 0.5,
-  arcHeight = 0.3,
+  markerSize = 0.05,
   speed = 0.0025,
   theta = 0.25,
   diffuse = 1.6,
@@ -64,7 +56,6 @@ export function Globe({
   onMarkerClick,
 }: GlobeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const zoomWrapperRef = useRef<HTMLDivElement>(null);
   const pointerInteracting = useRef<{ x: number; y: number } | null>(null);
   const lastPointer = useRef<{ x: number; y: number; t: number } | null>(null);
   const dragOffset = useRef({ phi: 0, theta: 0 });
@@ -73,46 +64,19 @@ export function Globe({
   const thetaOffsetRef = useRef(0);
   const isPausedRef = useRef(false);
 
-  // Zoom
+  // Zoom (cobe'un native "scale" uniform'u ile)
   const zoomRef = useRef(1);
   const pinchingRef = useRef(false);
   const pinchStartDist = useRef(0);
   const pinchStartZoom = useRef(1);
 
-  // Globe HER RENDER'DA yeniden yaratilmasin diye tum degisen veriyi ref'te tutuyoruz;
-  // animate dongusu her karede bu ref'ten en guncel degerleri okur.
-  const live = useRef({
-    markers,
-    arcs,
-    markerColor,
-    baseColor,
-    arcColor,
-    markerElevation,
-    mapBrightness,
-    dark,
-    speed,
-    theta,
-  });
-  live.current = {
-    markers,
-    arcs,
-    markerColor,
-    baseColor,
-    arcColor,
-    markerElevation,
-    mapBrightness,
-    dark,
-    speed,
-    theta,
-  };
+  // Degisen veriyi ref'te tut; onRender her karede buradan okur (globe yeniden yaratilmaz).
+  const live = useRef({ markers, markerColor, baseColor, glowColor, mapBrightness, dark, speed, theta });
+  live.current = { markers, markerColor, baseColor, glowColor, mapBrightness, dark, speed, theta };
 
   const applyZoom = useCallback(
     (next: number) => {
-      const clamped = Math.max(minZoom, Math.min(maxZoom, next));
-      zoomRef.current = clamped;
-      if (zoomWrapperRef.current) {
-        zoomWrapperRef.current.style.transform = `scale(${clamped})`;
-      }
+      zoomRef.current = Math.max(minZoom, Math.min(maxZoom, next));
     },
     [minZoom, maxZoom]
   );
@@ -135,14 +99,8 @@ export function Globe({
         const dt = Math.max(now - lastPointer.current.t, 1);
         const maxVelocity = 0.15;
         velocity.current = {
-          phi: Math.max(
-            -maxVelocity,
-            Math.min(maxVelocity, ((e.clientX - lastPointer.current.x) / dt) * 0.3)
-          ),
-          theta: Math.max(
-            -maxVelocity,
-            Math.min(maxVelocity, ((e.clientY - lastPointer.current.y) / dt) * 0.08)
-          ),
+          phi: Math.max(-maxVelocity, Math.min(maxVelocity, ((e.clientX - lastPointer.current.x) / dt) * 0.3)),
+          theta: Math.max(-maxVelocity, Math.min(maxVelocity, ((e.clientY - lastPointer.current.y) / dt) * 0.08)),
         };
       }
       lastPointer.current = { x: e.clientX, y: e.clientY, t: now };
@@ -178,13 +136,10 @@ export function Globe({
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      applyZoom(zoomRef.current * factor);
+      applyZoom(zoomRef.current * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
     };
-
     const dist = (t: TouchList) =>
       Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         pinchingRef.current = true;
@@ -197,8 +152,7 @@ export function Globe({
     const onTouchMove = (e: TouchEvent) => {
       if (pinchingRef.current && e.touches.length === 2) {
         e.preventDefault();
-        const ratio = dist(e.touches) / pinchStartDist.current;
-        applyZoom(pinchStartZoom.current * ratio);
+        applyZoom(pinchStartZoom.current * (dist(e.touches) / pinchStartDist.current));
       }
     };
     const onTouchEnd = (e: TouchEvent) => {
@@ -220,12 +174,11 @@ export function Globe({
     };
   }, [enableZoom, applyZoom]);
 
-  // Globe'u YALNIZCA BIR KEZ olustur; veri guncellemeleri animate icinde ref'ten okunur.
+  // Globe'u YALNIZCA BIR KEZ olustur; guncellemeler onRender icinde ref'ten okunur.
   useEffect(() => {
     if (!canvasRef.current) return;
     const canvas = canvasRef.current;
     let globe: ReturnType<typeof createGlobe> | null = null;
-    let animationId: number;
     let phi = 0;
 
     function init() {
@@ -236,8 +189,8 @@ export function Globe({
       try {
         globe = createGlobe(canvas, {
           devicePixelRatio: dpr,
-          width,
-          height: width,
+          width: width * dpr,
+          height: width * dpr,
           phi: 0,
           theta: live.current.theta,
           dark: live.current.dark,
@@ -246,60 +199,46 @@ export function Globe({
           mapBrightness: live.current.mapBrightness,
           baseColor: live.current.baseColor,
           markerColor: live.current.markerColor,
-          glowColor,
-          markerElevation: live.current.markerElevation,
-          markers: live.current.markers.map((m) => ({
-            location: m.location,
-            size: markerSize,
-            id: m.id,
-          })),
-          arcs: live.current.arcs.map((a) => ({ from: a.from, to: a.to, id: a.id })),
-          arcColor: live.current.arcColor,
-          arcWidth,
-          arcHeight,
+          glowColor: live.current.glowColor,
           opacity: 0.95,
-        });
-
-        function animate() {
-          const L = live.current;
-          if (!isPausedRef.current) {
-            phi += L.speed;
-            if (
-              Math.abs(velocity.current.phi) > 0.0001 ||
-              Math.abs(velocity.current.theta) > 0.0001
-            ) {
-              phiOffsetRef.current += velocity.current.phi;
-              thetaOffsetRef.current += velocity.current.theta;
-              velocity.current.phi *= 0.95;
-              velocity.current.theta *= 0.95;
+          scale: 1,
+          markers: live.current.markers.map((m) => ({ location: m.location, size: markerSize })),
+          onRender: (state: Record<string, any>) => {
+            const L = live.current;
+            if (!isPausedRef.current) {
+              phi += L.speed;
+              if (
+                Math.abs(velocity.current.phi) > 0.0001 ||
+                Math.abs(velocity.current.theta) > 0.0001
+              ) {
+                phiOffsetRef.current += velocity.current.phi;
+                thetaOffsetRef.current += velocity.current.theta;
+                velocity.current.phi *= 0.95;
+                velocity.current.theta *= 0.95;
+              }
+              const thetaMin = -0.5,
+                thetaMax = 0.5;
+              if (thetaOffsetRef.current < thetaMin) {
+                thetaOffsetRef.current += (thetaMin - thetaOffsetRef.current) * 0.1;
+              } else if (thetaOffsetRef.current > thetaMax) {
+                thetaOffsetRef.current += (thetaMax - thetaOffsetRef.current) * 0.1;
+              }
             }
-            const thetaMin = -0.4,
-              thetaMax = 0.4;
-            if (thetaOffsetRef.current < thetaMin) {
-              thetaOffsetRef.current += (thetaMin - thetaOffsetRef.current) * 0.1;
-            } else if (thetaOffsetRef.current > thetaMax) {
-              thetaOffsetRef.current += (thetaMax - thetaOffsetRef.current) * 0.1;
-            }
-          }
-          globe!.update({
-            phi: phi + phiOffsetRef.current + dragOffset.current.phi,
-            theta: L.theta + thetaOffsetRef.current + dragOffset.current.theta,
-            dark: L.dark,
-            mapBrightness: L.mapBrightness,
-            markerColor: L.markerColor,
-            baseColor: L.baseColor,
-            arcColor: L.arcColor,
-            markerElevation: L.markerElevation,
-            markers: L.markers.map((m) => ({
+            state.phi = phi + phiOffsetRef.current + dragOffset.current.phi;
+            state.theta = L.theta + thetaOffsetRef.current + dragOffset.current.theta;
+            state.scale = zoomRef.current;
+            state.dark = L.dark;
+            state.mapBrightness = L.mapBrightness;
+            state.baseColor = L.baseColor;
+            state.markerColor = L.markerColor;
+            state.glowColor = L.glowColor;
+            state.markers = L.markers.map((m) => ({
               location: m.location,
               size: markerSize,
-              id: m.id,
-            })),
-            arcs: L.arcs.map((a) => ({ from: a.from, to: a.to, id: a.id })),
-          });
-          animationId = requestAnimationFrame(animate);
-        }
-        animate();
+              color: L.markerColor,
+            }));
+          },
+        });
         setTimeout(() => canvas && (canvas.style.opacity = "1"));
       } catch (err) {
         console.warn("Globe (cobe) baslatilamadi:", err);
@@ -319,118 +258,26 @@ export function Globe({
     }
 
     return () => {
-      if (animationId) cancelAnimationFrame(animationId);
       if (globe) globe.destroy();
     };
-    // Kasitli olarak bos: globe sadece mount'ta bir kez kurulur.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className={`relative aspect-square select-none ${className}`} style={{ overflow: "hidden" }}>
-      <div
-        ref={zoomWrapperRef}
+      <canvas
+        ref={canvasRef}
+        onPointerDown={handlePointerDown}
         style={{
           width: "100%",
           height: "100%",
-          transformOrigin: "center center",
-          transition: "transform 0.12s ease-out",
-          position: "relative",
+          cursor: "grab",
+          opacity: 0,
+          transition: "opacity 1.2s ease",
+          borderRadius: "50%",
+          touchAction: "none",
         }}
-      >
-        <canvas
-          ref={canvasRef}
-          onPointerDown={handlePointerDown}
-          style={{
-            width: "100%",
-            height: "100%",
-            cursor: "grab",
-            opacity: 0,
-            transition: "opacity 1.2s ease",
-            borderRadius: "50%",
-            touchAction: "none",
-          }}
-        />
-        {markers.map((m) => (
-          <div
-            key={m.id}
-            onClick={() => onMarkerClick?.(m.id)}
-            style={{
-              position: "absolute",
-              positionAnchor: `--cobe-${m.id}`,
-              bottom: "anchor(top)",
-              left: "anchor(center)",
-              translate: "-50% 0",
-              marginBottom: 8,
-              padding: "2px 6px",
-              background: "#1a1a2e",
-              color: "#fff",
-              fontFamily: "monospace",
-              fontSize: "0.6rem",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase" as const,
-              whiteSpace: "nowrap" as const,
-              pointerEvents: onMarkerClick ? ("auto" as const) : ("none" as const),
-              cursor: onMarkerClick ? "pointer" : "default",
-              opacity: `var(--cobe-visible-${m.id}, 0)`,
-              filter: `blur(calc((1 - var(--cobe-visible-${m.id}, 0)) * 8px))`,
-              transition: "opacity 0.8s, filter 0.8s",
-            }}
-          >
-            {m.label}
-            <span
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: "50%",
-                transform: "translate3d(-50%, -1px, 0)",
-                border: "5px solid transparent",
-                borderTopColor: "#1a1a2e",
-              }}
-            />
-          </div>
-        ))}
-        {arcs
-          .filter((a) => a.label)
-          .map((a) => (
-            <div
-              key={a.id}
-              style={{
-                position: "absolute",
-                positionAnchor: `--cobe-arc-${a.id}`,
-                bottom: "anchor(top)",
-                left: "anchor(center)",
-                translate: "-50% 0",
-                marginBottom: 8,
-                padding: "2px 6px",
-                background: "#fff",
-                color: "#1a1a2e",
-                fontFamily: "monospace",
-                fontSize: "0.6rem",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase" as const,
-                whiteSpace: "nowrap" as const,
-                pointerEvents: "none" as const,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-                opacity: `var(--cobe-visible-arc-${a.id}, 0)`,
-                filter: `blur(calc((1 - var(--cobe-visible-arc-${a.id}, 0)) * 8px))`,
-                transition: "opacity 0.8s, filter 0.8s",
-              }}
-            >
-              {a.label}
-              <span
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  left: "50%",
-                  transform: "translate3d(-50%, -1px, 0)",
-                  border: "5px solid transparent",
-                  borderTopColor: "#fff",
-                }}
-              />
-            </div>
-          ))}
-      </div>
+      />
 
       {enableZoom && (
         <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
