@@ -86,8 +86,8 @@ VITE_FIREBASE_APP_ID=...
 VITE_LASTFM_API_KEY=...
 ```
 
-Canli GitHub Pages yayininda repo ayarlarina `VITE_LASTFM_API_KEY` adli GitHub Secret
-ekleyebilirsin. Alternatif olarak `.env.production` icindeki ayni degere API key yazilabilir.
+Canli GitHub Pages yayininda repo ayarlarina `VITE_LASTFM_API_KEY` adli GitHub Secret eklenmelidir.
+Yerel gelistirmede `.env` icindeki `VITE_LASTFM_API_KEY` kullanilir.
 
 ## 6) Gelistirme
 
