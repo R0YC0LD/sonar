@@ -66,8 +66,11 @@ export async function beginSpotifyLogin() {
   const challenge = base64url(await sha256(verifier));
   const state = randomString(16);
 
-  sessionStorage.setItem("spotify_verifier", verifier);
-  sessionStorage.setItem("spotify_state", state);
+  // localStorage kullaniyoruz (sessionStorage degil): iOS Safari'de Spotify'a
+  // gidip donerken callback farkli bir baglamda acilabiliyor ve sessionStorage
+  // kayboluyor. localStorage ayni origin'de her baglamda korunur.
+  localStorage.setItem("spotify_verifier", verifier);
+  localStorage.setItem("spotify_state", state);
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -89,8 +92,8 @@ export async function completeSpotifyLogin(): Promise<boolean> {
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const verifier = sessionStorage.getItem("spotify_verifier");
-  const savedState = sessionStorage.getItem("spotify_state");
+  const verifier = localStorage.getItem("spotify_verifier");
+  const savedState = localStorage.getItem("spotify_state");
 
   if (!code || !verifier || state !== savedState) return false;
 
@@ -115,8 +118,8 @@ export async function completeSpotifyLogin(): Promise<boolean> {
     refreshToken: data.refresh_token,
     expiresAt: Date.now() + data.expires_in * 1000,
   });
-  sessionStorage.removeItem("spotify_verifier");
-  sessionStorage.removeItem("spotify_state");
+  localStorage.removeItem("spotify_verifier");
+  localStorage.removeItem("spotify_state");
   return true;
 }
 
